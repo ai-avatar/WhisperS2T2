@@ -22,6 +22,12 @@ _TOKENIZER = {
 }
 
 def download_model(name):
+    if name == "distil-large-v3":
+        download_path = os.path.join(SAVE_DIR, name)
+        model_ckpt_path = os.path.join(download_path, "pt_ckpt.pt")
+        tokenizer_path = os.path.join(download_path, "tokenizer.json")
+        print("Using pt_ckpt.pt and tokenizer.json in " + download_path)
+        return model_ckpt_path, tokenizer_path
     
     url = _MODELS[name]
     expected_sha256 = url.split("/")[-2]
