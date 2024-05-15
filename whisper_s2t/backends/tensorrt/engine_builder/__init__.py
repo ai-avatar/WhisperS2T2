@@ -91,7 +91,6 @@ def build_trt_engine(model_name='large-v2', args=None, force=False, log_level='e
         args = TRTBuilderConfig()
     
     args.output_dir = os.path.join(SAVE_DIR, model_name, args.identifier())
-    args.model_path, tokenizer_path = download_model(model_name)
     
     if force:
         console.print(f"'force' flag is 'True'. Removing previous build.")
@@ -121,7 +120,8 @@ def build_trt_engine(model_name='large-v2', args=None, force=False, log_level='e
             os.makedirs(args.output_dir)
         else:
             return args.output_dir
-    
+
+    args.model_path, tokenizer_path = download_model(model_name)
     os.system(f"cp '{tokenizer_path}' '{args.output_dir}/tokenizer.json'")
     save_trt_build_configs(args)
 
