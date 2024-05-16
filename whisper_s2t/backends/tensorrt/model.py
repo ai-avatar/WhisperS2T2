@@ -111,14 +111,13 @@ class WhisperModelTRT(WhisperModel):
         tokenizer_file = os.path.join(self.model_path, "tokenizer.json")
         tokenizer = Tokenizer(tokenizers.Tokenizer.from_file(tokenizer_file), self.model.is_multilingual)
 
-        if self.asr_options['word_timestamps']:
-            self.aligner_model_path = download_model(self.asr_options['word_aligner_model'])
-            self.aligner_model = ctranslate2.models.Whisper(self.aligner_model_path,
-                                                            device=device,
-                                                            device_index=device_index,
-                                                            compute_type=compute_type,
-                                                            intra_threads=cpu_threads,
-                                                            inter_threads=num_workers)
+        self.aligner_model_path = download_model(self.asr_options['word_aligner_model'])
+        self.aligner_model = ctranslate2.models.Whisper(self.aligner_model_path,
+                                                        device=device,
+                                                        device_index=device_index,
+                                                        compute_type=compute_type,
+                                                        intra_threads=cpu_threads,
+                                                        inter_threads=num_workers)
         
         self.generate_kwargs = {
             "end_id": tokenizer.eot,
