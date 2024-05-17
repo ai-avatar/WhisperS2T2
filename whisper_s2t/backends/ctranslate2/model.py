@@ -216,7 +216,10 @@ class WhisperModelCT2(WhisperModel):
         return word_timings
     
     def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens):
-        
+        print("features", features)
+        print("seq_lens", seq_lens)
+        print("align_features", align_features)
+        print("align_seq_lens", align_seq_lens)
         if self.device == 'cpu':
             features = np.ascontiguousarray(features.detach().numpy())
         else:
