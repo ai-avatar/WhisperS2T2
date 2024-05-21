@@ -69,7 +69,8 @@ def get_single_sentence_in_one_utterance(transcript, end_punct_marks=["?", "."])
                 new_transcript.append({
                     'text': " ".join([_['word'] for _ in curr_utt]),
                     'start_time': curr_utt[0]['start'],
-                    'end_time': curr_utt[-1]['end']
+                    'end_time': curr_utt[-1]['end'],
+                    'word_timestamps': curr_utt
                 })
 
                 curr_utt = []
