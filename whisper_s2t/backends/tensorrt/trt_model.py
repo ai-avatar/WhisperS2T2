@@ -78,7 +78,7 @@ class WhisperDecoding:
         self.decoder_config = self.get_config(engine_dir)
         self.decoder_generation_session = self.get_session(
             engine_dir, runtime_mapping, debug_mode)
-        self.queue = asyncio.Queue(maxsize=len(1))
+        self.queue = asyncio.Queue(maxsize=1)
         self.queue.put_nowait(0)
 
     def get_config(self, engine_dir):
