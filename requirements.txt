@@ -11,3 +11,4 @@ optimum
 transformers
 openai-whisper
 nvidia-ml-py
+nest_asyncio

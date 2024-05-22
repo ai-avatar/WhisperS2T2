@@ -2,6 +2,7 @@ import json
 import torch
 import tensorrt_llm
 import asyncio
+import nest_asyncio
 
 from pathlib import Path
 from collections import OrderedDict
@@ -10,6 +11,7 @@ from tensorrt_llm._utils import str_dtype_to_torch, str_dtype_to_trt, trt_dtype_
 from tensorrt_llm.runtime import ModelConfig, SamplingConfig
 from tensorrt_llm.runtime.session import Session, TensorInfo
 
+nest_asyncio.apply()
 
 class WhisperEncoding:
 
@@ -136,16 +138,13 @@ class WhisperDecoding:
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            output_ids = loop.run_until_complete(
+            output_ids = asyncio.run(
                 self.generate_async(decoder_input_ids, encoder_outputs,
                                     encoder_input_lengths, decoder_input_lengths,
                                     decoder_max_input_length, sampling_config))
         finally:
             if not any(item == 0 for item in self.queue._queue):
                 self.queue.put_nowait(0)
-            loop.close()
 
         return output_ids
     
