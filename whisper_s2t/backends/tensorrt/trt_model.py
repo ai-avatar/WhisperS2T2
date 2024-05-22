@@ -1,6 +1,7 @@
 import json
 import torch
 import tensorrt_llm
+import asyncio
 
 from pathlib import Path
 from collections import OrderedDict
@@ -77,6 +78,8 @@ class WhisperDecoding:
         self.decoder_config = self.get_config(engine_dir)
         self.decoder_generation_session = self.get_session(
             engine_dir, runtime_mapping, debug_mode)
+        self.queue = asyncio.Queue(maxsize=len(1))
+        self.queue.put_nowait(0)
 
     def get_config(self, engine_dir):
         config_path = engine_dir / 'decoder_config.json'
@@ -132,7 +135,20 @@ class WhisperDecoding:
                                              dtype=torch.int32,
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
+        try:
+            output_ids = asyncio.run(
+                self.generate_async(decoder_input_ids, encoder_outputs,
+                                    encoder_input_lengths, decoder_input_lengths,
+                                    decoder_max_input_length, sampling_config))
+        finally:
+            self.queue.put_nowait(0)
 
+        return output_ids
+    
+    async def generate_async(self, decoder_input_ids, encoder_outputs,
+                             encoder_input_lengths, decoder_input_lengths,
+                             decoder_max_input_length, sampling_config):
+        await self.queue.get()
         self.decoder_generation_session.setup(
             decoder_input_lengths.size(0),
             decoder_max_input_length,
