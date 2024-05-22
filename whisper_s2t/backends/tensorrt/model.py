@@ -33,6 +33,7 @@ FAST_ASR_OPTIONS = {
     "return_scores": True,
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
+    "aligner_model_instance": None,
 }
 
 
@@ -56,6 +57,7 @@ BEST_ASR_CONFIG = {
     "return_scores": True,
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
+    "aligner_model_instance": None,
 }
 
 
