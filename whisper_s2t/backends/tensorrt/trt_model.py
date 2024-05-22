@@ -136,8 +136,7 @@ class WhisperDecoding:
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
         try:
-            loop = asyncio.get_running_loop()
-            output_ids = loop.run_until_complete(
+            output_ids = asyncio.create_task(
                 self.generate_async(decoder_input_ids, encoder_outputs,
                                     encoder_input_lengths, decoder_input_lengths,
                                     decoder_max_input_length, sampling_config))
