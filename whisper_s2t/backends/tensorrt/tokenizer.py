@@ -86,6 +86,13 @@ class Tokenizer:
 
         return self.tokenizer.decode_batch(res)
     
+    def decode_batch_with_timestamps(self, tokens):
+        res = []
+        for tk in tokens:
+            res.append([token for token in tk])
+
+        return self.tokenizer.decode_batch(res)
+
     def split_tokens_on_unicode(self, text, tokens):
         replacement_char = "\ufffd"
     

@@ -240,7 +240,7 @@ class WhisperModelTRT(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
-        texts = self.tokenizer.decode_batch([x[0] for x in result])
+        texts = self.tokenizer.decode_batch_with_timestamps([x[0] for x in result])
         
         response = []
         for idx, r in enumerate(result):
