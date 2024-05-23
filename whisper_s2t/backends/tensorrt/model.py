@@ -240,9 +240,16 @@ class WhisperModelTRT(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
-        print(result)
-        texts = self.tokenizer.decode_batch_with_timestamps([x[0] for x in result])
-        print(texts)
+        # group tokens by utterance (separated by timestamp tokens)
+        tokens = [[]]
+        index = 0
+        for token in result[0][0]:
+            if token > self.tokenizer.timestamp_begin and len(tokens[index]):
+                tokens.append([])
+                index += 1
+            tokens[index].append(token)
+
+        texts = self.tokenizer.decode_batch(tokens)
         
         response = []
         for idx, r in enumerate(result):
