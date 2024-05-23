@@ -252,7 +252,7 @@ class WhisperModelTRT(WhisperModel):
         texts = self.tokenizer.decode_batch(tokens)
         
         response = []
-        for idx, r in enumerate(result):
+        for idx, r in enumerate(texts):
             response.append({'text': texts[idx].strip()})
 
         if self.asr_options['word_timestamps']:
