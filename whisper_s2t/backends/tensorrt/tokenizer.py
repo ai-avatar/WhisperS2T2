@@ -73,7 +73,7 @@ class Tokenizer:
         return sequence
 
     def encode(self, text):
-        return self.tokenizer.encode(text, add_special_tokens=False).ids
+        return self.tokenizer.encode(text, add_special_tokens=True).ids
 
     def decode(self, tokens):
         text_tokens = [token for token in tokens if token < self.eot]
