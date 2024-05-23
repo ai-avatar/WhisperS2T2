@@ -2,7 +2,6 @@ import json
 import torch
 import tensorrt_llm
 import asyncio
-import nest_asyncio
 
 from pathlib import Path
 from collections import OrderedDict
@@ -11,7 +10,6 @@ from tensorrt_llm._utils import str_dtype_to_torch, str_dtype_to_trt, trt_dtype_
 from tensorrt_llm.runtime import ModelConfig, SamplingConfig
 from tensorrt_llm.runtime.session import Session, TensorInfo
 
-nest_asyncio.apply()
 
 class WhisperEncoding:
 
@@ -120,7 +118,7 @@ class WhisperDecoding:
 
         return decoder_generation_session
 
-    def generate(self,
+    async def generate(self,
                  decoder_input_ids,
                  encoder_outputs,
                  sampling_config):
@@ -138,41 +136,31 @@ class WhisperDecoding:
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
         try:
-            output_ids = asyncio.run(
-                self.generate_async(decoder_input_ids, encoder_outputs,
-                                    encoder_input_lengths, decoder_input_lengths,
-                                    decoder_max_input_length, sampling_config))
+            await self.queue.get()
+            self.decoder_generation_session.setup(
+                decoder_input_lengths.size(0),
+                decoder_max_input_length,
+                sampling_config.max_new_tokens,
+                beam_width=sampling_config.num_beams,
+                encoder_max_input_length=encoder_outputs.shape[1])
+
+            torch.cuda.synchronize()
+
+            decoder_input_ids = decoder_input_ids.type(torch.int32).cuda()
+            output_ids = self.decoder_generation_session.decode(
+                decoder_input_ids,
+                decoder_input_lengths,
+                sampling_config,
+                encoder_output=encoder_outputs,
+                encoder_input_lengths=encoder_input_lengths,
+            )
+            torch.cuda.synchronize()
+
+            # get the list of int from output_ids tensor
+            output_ids = output_ids.cpu().numpy().tolist()
         finally:
-            if not any(item == 0 for item in self.queue._queue):
-                self.queue.put_nowait(0)
-
-        return output_ids
-    
-    async def generate_async(self, decoder_input_ids, encoder_outputs,
-                             encoder_input_lengths, decoder_input_lengths,
-                             decoder_max_input_length, sampling_config):
-        await self.queue.get()
-        self.decoder_generation_session.setup(
-            decoder_input_lengths.size(0),
-            decoder_max_input_length,
-            sampling_config.max_new_tokens,
-            beam_width=sampling_config.num_beams,
-            encoder_max_input_length=encoder_outputs.shape[1])
-
-        torch.cuda.synchronize()
-
-        decoder_input_ids = decoder_input_ids.type(torch.int32).cuda()
-        output_ids = self.decoder_generation_session.decode(
-            decoder_input_ids,
-            decoder_input_lengths,
-            sampling_config,
-            encoder_output=encoder_outputs,
-            encoder_input_lengths=encoder_input_lengths,
-        )
-        torch.cuda.synchronize()
-
-        # get the list of int from output_ids tensor
-        output_ids = output_ids.cpu().numpy().tolist()
+            self.queue.put_nowait(0)
+        
         return output_ids
 
 
@@ -193,7 +181,7 @@ class WhisperTRT:
     def encode(self, mel):
         return self.encoder.get_audio_features(mel.type(str_dtype_to_torch(self.compute_type)))
 
-    def generate(self, features, prompts, **generate_kwargs):
+    async def generate(self, features, prompts, **generate_kwargs):
         if features.shape[1] == self.n_mels:
             features = self.encode(features)
 
@@ -201,7 +189,7 @@ class WhisperTRT:
             
         sampling_config = SamplingConfig(**generate_kwargs)
         
-        output_ids = self.decoder.generate(decoder_input_ids,
+        output_ids = await self.decoder.generate(decoder_input_ids,
                                            features,
                                            sampling_config)
 
