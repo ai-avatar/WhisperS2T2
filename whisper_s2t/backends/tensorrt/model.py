@@ -250,6 +250,7 @@ class WhisperModelTRT(WhisperModel):
             tokens[index].append(token)
 
         texts = self.tokenizer.decode_batch(tokens)
+        print(texts)
         
         response = []
         for idx, r in enumerate(texts):
