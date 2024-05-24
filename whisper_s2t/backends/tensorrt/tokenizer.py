@@ -73,7 +73,7 @@ class Tokenizer:
         return sequence
 
     def encode(self, text):
-        return self.tokenizer.encode(text, add_special_tokens=True).ids
+        return self.tokenizer.encode(text, add_special_tokens=False).ids
 
     def decode(self, tokens):
         text_tokens = [token for token in tokens if token < self.eot]
@@ -83,13 +83,6 @@ class Tokenizer:
         res = []
         for tk in tokens:
             res.append([token for token in tk if token < self.eot])
-
-        return self.tokenizer.decode_batch(res)
-    
-    def decode_batch_with_timestamps(self, tokens):
-        res = []
-        for tk in tokens:
-            res.append([token for token in tk])
 
         return self.tokenizer.decode_batch(res)
 
