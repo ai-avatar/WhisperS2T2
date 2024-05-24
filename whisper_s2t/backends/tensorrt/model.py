@@ -266,7 +266,7 @@ class WhisperModelTRT(WhisperModel):
             print(texts)
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
-            word_timings = self.align_words(align_features, ["".join(texts)], text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
+            word_timings = self.align_words(align_features, texts, tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
 
             offset = 0
             for idx, segment in enumerate(response):
