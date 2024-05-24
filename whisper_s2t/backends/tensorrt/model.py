@@ -260,6 +260,7 @@ class WhisperModelTRT(WhisperModel):
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
+        print('groups_per_segment', groups_per_segment)
         text_groups = self.tokenizer.decode_batch(tokens)
         print('text_groups', text_groups)
 
