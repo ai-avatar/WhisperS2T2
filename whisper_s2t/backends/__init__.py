@@ -173,6 +173,7 @@ class WhisperModel(ABC):
                 res = await self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
 
                 for segment in res:
+                    print(segment)
                     responses[0].append({**segment,
                                          'start_time': round(segment['word_timestamps'][0]['start'], 3),
                                          'end_time': round(segment['word_timestamps'][-1]['end'], 3)})
