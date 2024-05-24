@@ -243,8 +243,6 @@ class WhisperModelTRT(WhisperModel):
         result = await self.model.generate(features,
                                      prompts,
                                      **self.generate_kwargs)
-        
-        print("result", result)
 
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
@@ -263,6 +261,7 @@ class WhisperModelTRT(WhisperModel):
             tokens = tokens[:-1]
 
         text_groups = self.tokenizer.decode_batch(tokens)
+        print('text_groups', text_groups)
 
         texts = []
         for idx, group in enumerate(groups_per_segment):
