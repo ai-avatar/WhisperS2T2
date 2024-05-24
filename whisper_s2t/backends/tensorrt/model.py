@@ -268,6 +268,7 @@ class WhisperModelTRT(WhisperModel):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
                 for word_timing in word_timings[offset:]:
+                    print(word_timing)
                     words.append(word_timing)
                     segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
