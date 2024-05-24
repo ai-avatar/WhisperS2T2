@@ -187,17 +187,30 @@ class WhisperModelTRT(WhisperModel):
             )
         ]
 
-    def align_words(self, features, texts, text_tokens, start_seq, seq_lens, seg_metadata):
+    def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
-        token_alignments = [self.aligner_model.align(ctranslate2.StorageView.from_array(features[0]), 
-                                        start_sequence=list(start_seq), 
-                                        text_tokens=text_tokens,
-                                        num_frames=list(seq_lens[0].detach().cpu().numpy()), 
-                                        median_filter_width=7)]
+        start_seq_wise_req = {}
+        for _idx, _sot_seq in enumerate(sot_seqs):
+            try:
+                # print(_sot_seq)
+                start_seq_wise_req[_sot_seq].append(_idx)
+            except:
+                start_seq_wise_req[_sot_seq] = [_idx]
 
-        print("token_alignments", token_alignments)
+        print(sot_seqs)
+        token_alignments = [[] for _ in seg_metadata]
+        for start_seq, req_idx in start_seq_wise_req.items():
+            res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
+                                           start_sequence=list(start_seq), 
+                                           text_tokens=[text_tokens[_] for _ in req_idx],
+                                           num_frames=list(seq_lens[req_idx].detach().cpu().numpy()), 
+                                           median_filter_width=7)
+
+            for _res, _req_idx in zip(res, req_idx):
+                token_alignments[_req_idx] = _res
+
         word_timings = []
         print("seg_metadata", seg_metadata)
         for _idx, _seg_metadata in enumerate(seg_metadata):
@@ -253,8 +266,9 @@ class WhisperModelTRT(WhisperModel):
         if self.asr_options['word_timestamps']:
             print(texts)
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
-            sot_seq = tuple(prompts[0][-4:])
-            word_timings = self.align_words(align_features, texts, tokens, sot_seq, align_seq_lens, seg_metadata)[0]
+            print('text_tokens', text_tokens)
+            sot_seqs = [tuple(_[-4:]) for _ in prompts]
+            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
 
             offset = 0
             for idx, segment in enumerate(response):
