@@ -250,6 +250,9 @@ class WhisperModelTRT(WhisperModel):
             elif token < self.tokenizer.eot:
                 tokens[index].append(token)
 
+        if len(tokens[-1]) == 0:
+            tokens = tokens[:-1]
+
         texts = self.tokenizer.decode_batch(tokens)
         
         response = []
