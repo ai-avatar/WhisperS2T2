@@ -283,10 +283,11 @@ class WhisperModelTRT(WhisperModel):
                 _response['word_timestamps'] = _word_timings
 
             offset = 0
-            for idx, segment in enumerate(np.array(response).flat):
+            flat_word_timings = list(np.array(word_timings).flat)
+            for idx, segment in enumerate(response):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
-                for word_timing in word_timings[offset:]:
+                for word_timing in flat_word_timings[offset:]:
                     words.append(word_timing)
                     segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
