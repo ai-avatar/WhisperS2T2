@@ -267,9 +267,9 @@ class WhisperModelTRT(WhisperModel):
             for idx, segment in enumerate(response):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
-                for word in word_timings[offset:]:
-                    words.append(word['word'])
-                    segment_length -= len(word['word'])
+                for word_timing in word_timings[offset:]:
+                    words.append(word_timing)
+                    segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
                         offset += len(words)
                         break
