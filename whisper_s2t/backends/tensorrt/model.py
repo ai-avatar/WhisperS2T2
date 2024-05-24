@@ -217,6 +217,7 @@ class WhisperModelTRT(WhisperModel):
                                                      token_alignments[_idx].text_token_probs, 
                                                      word_tokens[_idx][0], 
                                                      word_tokens[_idx][1])
+            print("Word Timings: ", _word_timings)
         
             stitched_seg = _seg_metadata['stitched_seg']
 
