@@ -190,7 +190,6 @@ class WhisperModelTRT(WhisperModel):
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
-        print(word_tokens)
 
         start_seq_wise_req = {}
         for _idx, _sot_seq in enumerate(sot_seqs):
