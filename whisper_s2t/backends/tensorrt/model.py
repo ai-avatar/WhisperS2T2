@@ -180,7 +180,7 @@ class WhisperModelTRT(WhisperModel):
     
         return [
             dict(
-                word=word, start=round(start, 2), end=round(end, 2), prob=round(prob, 2)
+                word=word, start=round(start, 3), end=round(end, 3), prob=round(prob, 3)
             )
             for word, start, end, prob in zip(
                 words, start_times, end_times, word_probs
@@ -253,7 +253,6 @@ class WhisperModelTRT(WhisperModel):
                 tokens[index].append(token)
 
         texts = self.tokenizer.decode_batch(tokens)
-        print(texts)
         
         response = []
         for idx, r in enumerate(texts):
@@ -264,7 +263,16 @@ class WhisperModelTRT(WhisperModel):
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
-            for _response, _word_timings in zip(response, word_timings):
-                _response['word_timestamps'] = _word_timings
+            offset = 0
+            for idx, segment in enumerate(response):
+                segment_length = len(segment['text'].replace(" ", ""))
+                words = []
+                for word in word_timings[offset:]:
+                    words.append(word['word'])
+                    segment_length -= len(word['word'])
+                    if segment_length <= 0:
+                        offset += len(words)
+                        break
+                segment['word_timestamps'] = words
 
         return response
