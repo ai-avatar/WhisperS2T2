@@ -208,6 +208,7 @@ class WhisperModelTRT(WhisperModel):
                                            num_frames=list(seq_lens[req_idx].detach().cpu().numpy()), 
                                            median_filter_width=7)
 
+            print("Alignments: ", res)
             for _res, _req_idx in zip(res, req_idx):
                 token_alignments[_req_idx] = _res
 
@@ -217,7 +218,6 @@ class WhisperModelTRT(WhisperModel):
                                                      token_alignments[_idx].text_token_probs, 
                                                      word_tokens[_idx][0], 
                                                      word_tokens[_idx][1])
-            print("Word Timings: ", _word_timings)
         
             stitched_seg = _seg_metadata['stitched_seg']
 
