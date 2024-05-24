@@ -279,9 +279,6 @@ class WhisperModelTRT(WhisperModel):
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
-            for _response, _word_timings in zip(response, word_timings):
-                _response['word_timestamps'] = _word_timings
-
             offset = 0
             flat_word_timings = [word for sublist in word_timings for word in sublist]
             for idx, segment in enumerate(response):
