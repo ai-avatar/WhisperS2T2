@@ -245,7 +245,28 @@ class WhisperModelTRT(WhisperModel):
                                      **self.generate_kwargs)
         
         print("result", result)
-        texts = self.tokenizer.decode_batch([x[0] for x in result])
+
+        # group tokens by utterance (separated by timestamp tokens)
+        tokens = [[]]
+        group = 0
+        groups_per_segment = []
+        for i, segment in enumerate(result):
+            for token in segment[0]:
+                if token > self.tokenizer.timestamp_begin and len(tokens[group]):
+                    tokens.append([])
+                    groups_per_segment.append(len(tokens[group]))
+                    group += 1
+                elif token < self.tokenizer.eot:
+                    tokens[group].append(token)
+
+        if len(tokens[-1]) == 0:
+            tokens = tokens[:-1]
+
+        text_groups = self.tokenizer.decode_batch([x[0] for x in result])
+
+        texts = []
+        for idx, group in enumerate(groups_per_segment):
+            texts.append(" ".join(text_groups[idx:group+idx]))
         
         response = []
         for idx, r in enumerate(result):
