@@ -85,7 +85,7 @@ class Tokenizer:
             res.append([token for token in tk if token < self.eot])
 
         return self.tokenizer.decode_batch(res)
-    
+
     def split_tokens_on_unicode(self, text, tokens):
         replacement_char = "\ufffd"
     

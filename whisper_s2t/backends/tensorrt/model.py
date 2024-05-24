@@ -180,7 +180,7 @@ class WhisperModelTRT(WhisperModel):
     
         return [
             dict(
-                word=word, start=round(start, 2), end=round(end, 2), prob=round(prob, 2)
+                word=word, start=round(start, 3), end=round(end, 3), prob=round(prob, 3)
             )
             for word, start, end, prob in zip(
                 words, start_times, end_times, word_probs
@@ -243,19 +243,41 @@ class WhisperModelTRT(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
-        texts = self.tokenizer.decode_batch([x[0] for x in result])
+        # group tokens by utterance (separated by timestamp tokens)
+        tokens = [[]]
+        index = 0
+        for token in result[0][0]:
+            if token > self.tokenizer.timestamp_begin and len(tokens[index]):
+                tokens.append([])
+                index += 1
+            elif token < self.tokenizer.eot:
+                tokens[index].append(token)
+
+        if len(tokens[-1]) == 0:
+            tokens = tokens[:-1]
+
+        texts = self.tokenizer.decode_batch(tokens)
         
         response = []
-        for idx, r in enumerate(result):
+        for idx, r in enumerate(texts):
             response.append({'text': texts[idx].strip()})
 
         if self.asr_options['word_timestamps']:
             print(texts)
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
-            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
+            word_timings = self.align_words(align_features, ["".join(texts)], text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
 
-            for _response, _word_timings in zip(response, word_timings):
-                _response['word_timestamps'] = _word_timings
+            offset = 0
+            for idx, segment in enumerate(response):
+                segment_length = len(segment['text'].replace(" ", ""))
+                words = []
+                for word_timing in word_timings[offset:]:
+                    words.append(word_timing)
+                    segment_length -= len(word_timing['word'])
+                    if segment_length <= 0:
+                        offset += len(words)
+                        break
+                segment['word_timestamps'] = words
 
         return response

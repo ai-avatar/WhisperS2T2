@@ -172,10 +172,10 @@ class WhisperModel(ABC):
                 align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
                 res = await self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
 
-                for res_idx, _seg_metadata in enumerate(seg_metadata):
-                    responses[_seg_metadata['file_id']].append({**res[res_idx],
-                                                                'start_time': round(_seg_metadata['start_time'], 3),
-                                                                'end_time': round(_seg_metadata['end_time'], 3)})
+                for segment in res:
+                    responses[0].append({**segment,
+                                         'start_time': round(segment['word_timestamps'][0]['start'], 3),
+                                         'end_time': round(segment['word_timestamps'][-1]['end'], 3)})
                 
                 if (pbar_pos) <= pbar.total:
                     pbar_pos += pbar_update
