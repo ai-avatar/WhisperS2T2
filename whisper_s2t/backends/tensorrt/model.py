@@ -269,8 +269,8 @@ class WhisperModelTRT(WhisperModel):
             texts.append(" ".join(text_groups[idx:group+idx]))
         
         response = []
-        for idx, r in enumerate(result):
-            response.append({'text': texts[idx].strip()})
+        for idx, r in enumerate(text_groups):
+            response.append({'text': text_groups[idx].strip()})
 
         if self.asr_options['word_timestamps']:
             print(texts)
@@ -278,6 +278,7 @@ class WhisperModelTRT(WhisperModel):
             print('text_tokens', text_tokens)
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
+            print('word_timings', word_timings)
 
             for _response, _word_timings in zip(response, word_timings):
                 _response['word_timestamps'] = _word_timings
