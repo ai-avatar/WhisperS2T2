@@ -247,6 +247,7 @@ class WhisperModelTRT(WhisperModel):
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         index = 0
+        print(result[0])
         for token in result[0][0]:
             if token > self.tokenizer.timestamp_begin and len(tokens[index]):
                 tokens.append([])
