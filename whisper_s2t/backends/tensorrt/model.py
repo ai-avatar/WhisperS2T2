@@ -247,7 +247,8 @@ class WhisperModelTRT(WhisperModel):
             if token > self.tokenizer.timestamp_begin and len(tokens[index]):
                 tokens.append([])
                 index += 1
-            tokens[index].append(token)
+            elif token < self.tokenizer.eot:
+                tokens[index].append(token)
 
         texts = self.tokenizer.decode_batch(tokens)
         print(texts)
