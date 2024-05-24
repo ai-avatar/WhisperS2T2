@@ -212,6 +212,8 @@ class WhisperModelTRT(WhisperModel):
 
         word_timings = []
         for _idx, _seg_metadata in enumerate(seg_metadata):
+            print(_idx)
+            print(word_tokens)
             _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
                                                      token_alignments[_idx].text_token_probs, 
                                                      word_tokens[_idx][0], 
@@ -262,7 +264,7 @@ class WhisperModelTRT(WhisperModel):
         if self.asr_options['word_timestamps']:
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
-            word_timings = self.align_words(align_features, [texts], text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
+            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
 
             offset = 0
             for idx, segment in enumerate(response):
