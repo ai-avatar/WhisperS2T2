@@ -199,7 +199,7 @@ class WhisperModelTRT(WhisperModel):
             except:
                 start_seq_wise_req[_sot_seq] = [_idx]
 
-        print(start_seq_wise_req)
+        print(sot_seqs)
         token_alignments = [[] for _ in seg_metadata]
         for start_seq, req_idx in start_seq_wise_req.items():
             res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
