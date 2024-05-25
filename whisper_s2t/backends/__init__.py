@@ -108,11 +108,11 @@ class WhisperModel(ABC):
 
     
     @abstractmethod
-    async def generate_segment_batched(self, features, prompts):
+    def generate_segment_batched(self, features, prompts):
         pass
         
     @torch.no_grad()
-    async def transcribe(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
+    def transcribe(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
         
         # if lang_codes == None:
         #     lang_codes = len(audio_files)*['en']
@@ -141,7 +141,7 @@ class WhisperModel(ABC):
         with tqdm(total=len(audio_files)*100, desc=f"Transcribing") as pbar:
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size, use_vad=False):
                 mels, seq_len = self.preprocessor(signals, seq_len)
-                res = await self.generate_segment_batched(mels.to(self.device), prompts, seq_len, seg_metadata)
+                res = self.generate_segment_batched(mels.to(self.device), prompts, seq_len, seg_metadata)
 
                 for res_idx, _seg_metadata in enumerate(seg_metadata):
                     responses[_seg_metadata['file_id']].append({**res[res_idx],
@@ -157,7 +157,7 @@ class WhisperModel(ABC):
         return responses
 
     @torch.no_grad()
-    async def transcribe_with_vad(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
+    def transcribe_with_vad(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
 
         lang_codes = fix_batch_param(lang_codes, 'en', len(audio_files))
         tasks = fix_batch_param(tasks, 'transcribe', len(audio_files))
@@ -170,7 +170,7 @@ class WhisperModel(ABC):
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size):
                 mels, main_seq_len = self.preprocessor(signals, seq_len)
                 align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
-                res = await self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
+                res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
 
                 for segment in res:
                     responses[0].append({**segment,

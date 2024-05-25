@@ -1,7 +1,7 @@
 import json
 import torch
 import tensorrt_llm
-import asyncio
+from queue import Queue
 
 from pathlib import Path
 from collections import OrderedDict
@@ -78,7 +78,7 @@ class WhisperDecoding:
         self.decoder_config = self.get_config(engine_dir)
         self.decoder_generation_session = self.get_session(
             engine_dir, runtime_mapping, debug_mode)
-        self.queue = asyncio.Queue(maxsize=1)
+        self.queue = Queue(maxsize=1)
         self.queue.put_nowait(0)
 
     def get_config(self, engine_dir):
@@ -118,7 +118,7 @@ class WhisperDecoding:
 
         return decoder_generation_session
 
-    async def generate(self,
+    def generate(self,
                  decoder_input_ids,
                  encoder_outputs,
                  sampling_config):
@@ -136,7 +136,7 @@ class WhisperDecoding:
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
         try:
-            await self.queue.get()
+            self.queue.get()
             self.decoder_generation_session.setup(
                 decoder_input_lengths.size(0),
                 decoder_max_input_length,
@@ -181,7 +181,7 @@ class WhisperTRT:
     def encode(self, mel):
         return self.encoder.get_audio_features(mel.type(str_dtype_to_torch(self.compute_type)))
 
-    async def generate(self, features, prompts, **generate_kwargs):
+    def generate(self, features, prompts, **generate_kwargs):
         if features.shape[1] == self.n_mels:
             features = self.encode(features)
 
@@ -189,7 +189,7 @@ class WhisperTRT:
             
         sampling_config = SamplingConfig(**generate_kwargs)
         
-        output_ids = await self.decoder.generate(decoder_input_ids,
+        output_ids = self.decoder.generate(decoder_input_ids,
                                            features,
                                            sampling_config)
 
