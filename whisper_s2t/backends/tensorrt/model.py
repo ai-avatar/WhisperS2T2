@@ -180,7 +180,7 @@ class WhisperModelTRT(WhisperModel):
     
         return [
             dict(
-                word=word, start=round(start, 3), end=round(end, 3), prob=round(prob, 3)
+                word=word, start=round(start, 2), end=round(end, 2), prob=round(prob, 2)
             )
             for word, start, end, prob in zip(
                 words, start_times, end_times, word_probs
@@ -239,36 +239,44 @@ class WhisperModelTRT(WhisperModel):
         result = await self.model.generate(features,
                                      prompts,
                                      **self.generate_kwargs)
-        
+
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
-        index = 0
-        for token in result[0][0]:
-            if token > self.tokenizer.timestamp_begin and len(tokens[index]):
-                tokens.append([])
-                index += 1
-            elif token < self.tokenizer.eot:
-                tokens[index].append(token)
+        group = 0
+        groups_per_segment = []
+        for i, segment in enumerate(result):
+            for token in segment[0]:
+                if token > self.tokenizer.timestamp_begin and len(tokens[group]):
+                    tokens.append([])
+                    groups_per_segment.append(len(tokens[group]))
+                    group += 1
+                elif token < self.tokenizer.eot:
+                    tokens[group].append(token)
 
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
-        texts = self.tokenizer.decode_batch(tokens)
+        text_groups = self.tokenizer.decode_batch(tokens)
+
+        texts = []
+        for idx, group in enumerate(groups_per_segment):
+            texts.append(" ".join(text_groups[idx:group+idx]))
         
         response = []
-        for idx, r in enumerate(texts):
-            response.append({'text': texts[idx].strip()})
+        for idx, r in enumerate(text_groups):
+            response.append({'text': text_groups[idx].strip()})
 
         if self.asr_options['word_timestamps']:
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
-            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)[0]
+            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
             offset = 0
+            flat_word_timings = [word for sublist in word_timings for word in sublist]
             for idx, segment in enumerate(response):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
-                for word_timing in word_timings[offset:]:
+                for word_timing in flat_word_timings[offset:]:
                     words.append(word_timing)
                     segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
