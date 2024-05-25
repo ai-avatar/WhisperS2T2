@@ -78,8 +78,6 @@ class WhisperDecoding:
         self.decoder_config = self.get_config(engine_dir)
         self.decoder_generation_session = self.get_session(
             engine_dir, runtime_mapping, debug_mode)
-        self.queue = Queue(maxsize=1)
-        self.queue.put_nowait(0)
 
     def get_config(self, engine_dir):
         config_path = engine_dir / 'decoder_config.json'
@@ -135,34 +133,27 @@ class WhisperDecoding:
                                              dtype=torch.int32,
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
-        try:
-            print("Waiting for queue")
-            self.queue.get()
-            print("Got queue")
-            self.decoder_generation_session.setup(
-                decoder_input_lengths.size(0),
-                decoder_max_input_length,
-                sampling_config.max_new_tokens,
-                beam_width=sampling_config.num_beams,
-                encoder_max_input_length=encoder_outputs.shape[1])
+        self.decoder_generation_session.setup(
+            decoder_input_lengths.size(0),
+            decoder_max_input_length,
+            sampling_config.max_new_tokens,
+            beam_width=sampling_config.num_beams,
+            encoder_max_input_length=encoder_outputs.shape[1])
 
-            torch.cuda.synchronize()
+        torch.cuda.synchronize()
 
-            decoder_input_ids = decoder_input_ids.type(torch.int32).cuda()
-            output_ids = self.decoder_generation_session.decode(
-                decoder_input_ids,
-                decoder_input_lengths,
-                sampling_config,
-                encoder_output=encoder_outputs,
-                encoder_input_lengths=encoder_input_lengths,
-            )
-            torch.cuda.synchronize()
+        decoder_input_ids = decoder_input_ids.type(torch.int32).cuda()
+        output_ids = self.decoder_generation_session.decode(
+            decoder_input_ids,
+            decoder_input_lengths,
+            sampling_config,
+            encoder_output=encoder_outputs,
+            encoder_input_lengths=encoder_input_lengths,
+        )
+        torch.cuda.synchronize()
 
-            # get the list of int from output_ids tensor
-            output_ids = output_ids.cpu().numpy().tolist()
-        finally:
-            print("Putting queue")
-            self.queue.put_nowait(0)
+        # get the list of int from output_ids tensor
+        output_ids = output_ids.cpu().numpy().tolist()
         
         return output_ids
 
@@ -180,20 +171,29 @@ class WhisperTRT:
         self.n_mels = self.encoder.n_mels
         self.is_multilingual = True
         self.compute_type = compute_type
+        self.queue = Queue(maxsize=1)
+        self.queue.put_nowait(0)
         
     def encode(self, mel):
         return self.encoder.get_audio_features(mel.type(str_dtype_to_torch(self.compute_type)))
 
     def generate(self, features, prompts, **generate_kwargs):
-        if features.shape[1] == self.n_mels:
-            features = self.encode(features)
+        try:
+            print("Waiting for queue")
+            self.queue.get()
+            print("Got queue")
+            if features.shape[1] == self.n_mels:
+                features = self.encode(features)
 
-        decoder_input_ids = torch.tensor(prompts)
+            decoder_input_ids = torch.tensor(prompts)
+                
+            sampling_config = SamplingConfig(**generate_kwargs)
             
-        sampling_config = SamplingConfig(**generate_kwargs)
-        
-        output_ids = self.decoder.generate(decoder_input_ids,
-                                           features,
-                                           sampling_config)
+            output_ids = self.decoder.generate(decoder_input_ids,
+                                            features,
+                                            sampling_config)
+        finally:
+            print("Putting queue")
+            self.queue.put_nowait(0)
 
         return output_ids
