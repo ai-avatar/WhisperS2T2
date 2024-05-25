@@ -256,6 +256,7 @@ class WhisperModelTRT(WhisperModel):
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
+        print(tokens)
         text_groups = self.tokenizer.decode_batch(tokens)
 
         texts = []
