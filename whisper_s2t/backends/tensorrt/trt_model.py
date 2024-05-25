@@ -136,7 +136,9 @@ class WhisperDecoding:
                                              device='cuda')
         decoder_max_input_length = torch.max(decoder_input_lengths).item()
         try:
+            print("Waiting for queue")
             self.queue.get()
+            print("Got queue")
             self.decoder_generation_session.setup(
                 decoder_input_lengths.size(0),
                 decoder_max_input_length,
@@ -159,6 +161,7 @@ class WhisperDecoding:
             # get the list of int from output_ids tensor
             output_ids = output_ids.cpu().numpy().tolist()
         finally:
+            print("Putting queue")
             self.queue.put_nowait(0)
         
         return output_ids
