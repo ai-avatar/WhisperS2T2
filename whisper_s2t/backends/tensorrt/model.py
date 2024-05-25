@@ -199,7 +199,6 @@ class WhisperModelTRT(WhisperModel):
             except:
                 start_seq_wise_req[_sot_seq] = [_idx]
 
-        print(sot_seqs)
         token_alignments = [[] for _ in seg_metadata]
         for start_seq, req_idx in start_seq_wise_req.items():
             res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
@@ -212,10 +211,7 @@ class WhisperModelTRT(WhisperModel):
                 token_alignments[_req_idx] = _res
 
         word_timings = []
-        print("seg_metadata", seg_metadata)
         for _idx, _seg_metadata in enumerate(seg_metadata):
-            print(_idx)
-            print(word_tokens)
             _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
                                                      token_alignments[_idx].text_token_probs, 
                                                      word_tokens[_idx][0], 
@@ -260,9 +256,7 @@ class WhisperModelTRT(WhisperModel):
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
-        print('groups_per_segment', groups_per_segment)
         text_groups = self.tokenizer.decode_batch(tokens)
-        print('text_groups', text_groups)
 
         texts = []
         for idx, group in enumerate(groups_per_segment):
@@ -273,9 +267,7 @@ class WhisperModelTRT(WhisperModel):
             response.append({'text': text_groups[idx].strip()})
 
         if self.asr_options['word_timestamps']:
-            print(texts)
             text_tokens = [[_t for _t in x[0] if _t < self.tokenizer.eot]+[self.tokenizer.eot] for x in result]
-            print('text_tokens', text_tokens)
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
