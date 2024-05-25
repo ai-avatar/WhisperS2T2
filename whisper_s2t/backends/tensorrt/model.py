@@ -240,6 +240,7 @@ class WhisperModelTRT(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
 
+        print("result", result)
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
