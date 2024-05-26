@@ -142,10 +142,11 @@ class WhisperDataLoader:
         self.merge_chunks = merge_chunks
         
     def data_collate_fn(self, batch):
+        max_seq_len_samples = MAX_TEXT_TOKEN_LENGTH * (HOP_LENGTH * INPUT_STRIDE)
         if self.use_dynamic_time_axis:
-            max_len = min(max([_[3] for _ in batch]) + self.dta_padding, N_SAMPLES)
+            max_len = min(max([_[3] for _ in batch]) + self.dta_padding, N_SAMPLES, max_seq_len_samples)
         else:
-            max_len = N_SAMPLES
+            max_len = min(N_SAMPLES, max_seq_len_samples)
 
         signal_batch = torch.stack([torch.from_numpy(pad_or_trim(_[0], length=max_len)).to(self.device) for _ in batch])
         seq_len = torch.tensor([_[3] for _ in batch]).to(self.device)
