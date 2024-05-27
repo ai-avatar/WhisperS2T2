@@ -1,7 +1,6 @@
 import json
 import torch
 import tensorrt_llm
-from queue import Queue
 
 from pathlib import Path
 from collections import OrderedDict
@@ -171,27 +170,20 @@ class WhisperTRT:
         self.n_mels = self.encoder.n_mels
         self.is_multilingual = True
         self.compute_type = compute_type
-
-        self.queue = Queue(maxsize=1)
-        self.queue.put_nowait(0)
         
     def encode(self, mel):
         return self.encoder.get_audio_features(mel.type(str_dtype_to_torch(self.compute_type)))
 
     def generate(self, features, prompts, **generate_kwargs):
-        try:
-            self.queue.get()
-            if features.shape[1] == self.n_mels:
-                features = self.encode(features)
+        if features.shape[1] == self.n_mels:
+            features = self.encode(features)
 
-            decoder_input_ids = torch.tensor(prompts)
-                
-            sampling_config = SamplingConfig(**generate_kwargs)
+        decoder_input_ids = torch.tensor(prompts)
             
-            output_ids = self.decoder.generate(decoder_input_ids,
-                                            features,
-                                            sampling_config)
-        finally:
-            self.queue.put_nowait(0)
+        sampling_config = SamplingConfig(**generate_kwargs)
+        
+        output_ids = self.decoder.generate(decoder_input_ids,
+                                        features,
+                                        sampling_config)
 
         return output_ids

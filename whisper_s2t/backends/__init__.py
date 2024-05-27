@@ -1,6 +1,7 @@
 import torch
 from tqdm import tqdm
 from abc import ABC, abstractmethod
+from queue import Queue
 
 from ..configs import *
 from ..data import WhisperDataLoader
@@ -67,6 +68,9 @@ class WhisperModel(ABC):
         self.vad_model = vad_model
         self.speech_segmenter_options = speech_segmenter_options
         self.speech_segmenter_options['max_seg_len'] = self.max_speech_len
+
+        self.queue = Queue(maxsize=1)
+        self.queue.put_nowait(0)
 
         # Tokenizer
         if tokenizer is None:
@@ -168,9 +172,13 @@ class WhisperModel(ABC):
         pbar_pos = 0
         with tqdm(total=len(audio_files)*100, desc=f"Transcribing") as pbar:
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size):
-                mels, main_seq_len = self.preprocessor(signals, seq_len)
-                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
-                res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
+                try:
+                    self.queue.get()
+                    mels, main_seq_len = self.preprocessor(signals, seq_len)
+                    align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
+                    res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
+                finally:
+                    self.queue.put_nowait(0)
 
                 for segment in res:
                     responses[0].append({**segment,
