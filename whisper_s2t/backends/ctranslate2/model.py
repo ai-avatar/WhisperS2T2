@@ -226,26 +226,49 @@ class WhisperModelCT2(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
-        texts = self.tokenizer.decode_batch([x.sequences_ids[0] for x in result])
+        
+        # group tokens by utterance (separated by timestamp tokens)
+        tokens = [[]]
+        group = 0
+        groups_per_segment = []
+        for i, segment in enumerate(result):
+            for token in segment.sequences_ids[0]:
+                if token > self.tokenizer.timestamp_begin and len(tokens[group]):
+                    tokens.append([])
+                    groups_per_segment.append(len(tokens[group]))
+                    group += 1
+                elif token < self.tokenizer.eot:
+                    tokens[group].append(token)
+
+        if len(tokens[-1]) == 0:
+            tokens = tokens[:-1]
+
+        text_groups = self.tokenizer.decode_batch(tokens)
+
+        texts = []
+        for idx, num_groups in enumerate(groups_per_segment):
+            texts.append(" ".join(text_groups[idx:num_groups+idx]))
         
         response = []
-        for idx, r in enumerate(result):
-            response.append({'text': texts[idx].strip()})
-
-            if self.generate_kwargs['return_scores']:
-                seq_len = len(r.sequences_ids[0])
-                cum_logprob = r.scores[0]*(seq_len**self.generate_kwargs['length_penalty'])
-                response[-1]['avg_logprob'] = cum_logprob/(seq_len + 1)
-
-            if self.generate_kwargs['return_no_speech_prob']:
-                response[-1]['no_speech_prob'] = r.no_speech_prob
+        for idx, r in enumerate(text_groups):
+            response.append({'text': text_groups[idx].strip()})
 
         if self.asr_options['word_timestamps']:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
-            for _response, _word_timings in zip(response, word_timings):
-                _response['word_timestamps'] = _word_timings
+            offset = 0
+            flat_word_timings = [word for sublist in word_timings for word in sublist]
+            for idx, segment in enumerate(response):
+                segment_length = len(segment['text'].replace(" ", ""))
+                words = []
+                for word_timing in flat_word_timings[offset:]:
+                    words.append(word_timing)
+                    segment_length -= len(word_timing['word'])
+                    if segment_length <= 0:
+                        offset += len(words)
+                        break
+                segment['word_timestamps'] = words
 
         return response
