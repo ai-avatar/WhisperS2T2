@@ -263,13 +263,15 @@ class WhisperModelCT2(WhisperModel):
             for idx, segment in enumerate(response):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
+                empty_words = 0
                 for word_timing in flat_word_timings[offset:]:
                     if word_timing['word'] == '':
+                        empty_words += 1
                         continue
                     words.append(word_timing)
                     segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
-                        offset += len(words)
+                        offset += len(words) + empty_words
                         break
                 segment['word_timestamps'] = words
 
