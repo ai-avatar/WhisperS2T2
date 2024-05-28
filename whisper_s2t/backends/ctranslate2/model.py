@@ -264,6 +264,8 @@ class WhisperModelCT2(WhisperModel):
                 segment_length = len(segment['text'].replace(" ", ""))
                 words = []
                 for word_timing in flat_word_timings[offset:]:
+                    if word_timing['word'] == '':
+                        continue
                     words.append(word_timing)
                     segment_length -= len(word_timing['word'])
                     if segment_length <= 0:
