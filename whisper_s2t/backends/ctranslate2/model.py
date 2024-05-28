@@ -226,6 +226,7 @@ class WhisperModelCT2(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
+        print("Result: ", result)
         texts = self.tokenizer.decode_batch([x.sequences_ids[0] for x in result])
         
         response = []
