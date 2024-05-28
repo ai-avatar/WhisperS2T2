@@ -193,10 +193,17 @@ class WhisperModelCT2(WhisperModel):
 
         word_timings = []
         for _idx, _seg_metadata in enumerate(seg_metadata):
-            _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
-                                                     token_alignments[_idx].text_token_probs, 
-                                                     word_tokens[_idx][0], 
-                                                     word_tokens[_idx][1])
+            try:
+                _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
+                                                        token_alignments[_idx].text_token_probs, 
+                                                        word_tokens[_idx][0], 
+                                                        word_tokens[_idx][1])
+            except:
+                print(f"Error in segment {_idx}")
+                print("texts", texts)
+                print("lang_codes", lang_codes)
+                print("word_tokens", word_tokens)
+                raise
         
             stitched_seg = _seg_metadata['stitched_seg']
 
