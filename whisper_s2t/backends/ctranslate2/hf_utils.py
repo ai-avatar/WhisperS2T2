@@ -26,6 +26,7 @@ _MODELS = {
     "large-v2": "Systran/faster-whisper-large-v2",
     "large-v3": "Systran/faster-whisper-large-v3",
     "large": "Systran/faster-whisper-large-v3",
+    "distil-large-v3": "Systran/faster-distil-whisper-large-v3",
 }
 
 
