@@ -141,7 +141,8 @@ class WhisperModel(ABC):
         with tqdm(total=len(audio_files)*100, desc=f"Transcribing") as pbar:
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size, use_vad=False):
                 mels, seq_len = self.preprocessor(signals, seq_len)
-                res = self.generate_segment_batched(mels.to(self.device), prompts, seq_len, seg_metadata)
+                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
+                res = self.generate_segment_batched(mels.to(self.device), prompts, seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
 
                 for segment in res:
                     responses[0].append({**segment,
