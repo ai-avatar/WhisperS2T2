@@ -112,7 +112,7 @@ class WhisperModel(ABC):
         pass
         
     @torch.no_grad()
-    def transcribe(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
+    def transcribe(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8, word_timestamps=True):
         
         # if lang_codes == None:
         #     lang_codes = len(audio_files)*['en']
@@ -140,14 +140,16 @@ class WhisperModel(ABC):
         pbar_pos = 0
         with tqdm(total=len(audio_files)*100, desc=f"Transcribing") as pbar:
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size, use_vad=False):
-                mels, seq_len = self.preprocessor(signals, seq_len)
-                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
-                res = self.generate_segment_batched(mels.to(self.device), prompts, seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
+                mels, main_seq_len = self.preprocessor(signals, seq_len)
+                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len) if word_timestamps else (None, None)
+                res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device) if align_mels is not None else None, align_seq_len)
 
                 for segment in res:
+                    start_time = round(segment['word_timestamps'][0]['start'], 3) if word_timestamps else segment['start_time']
+                    end_time = round(segment['word_timestamps'][-1]['end'], 3) if word_timestamps else segment['end_time']
                     responses[0].append({**segment,
-                                         'start_time': round(segment['word_timestamps'][0]['start'], 3),
-                                         'end_time': round(segment['word_timestamps'][-1]['end'], 3)})
+                                         'start_time': start_time,
+                                         'end_time': end_time})
                 
                 if (pbar_pos) <= pbar.total:
                     pbar_pos += pbar_update
@@ -158,7 +160,7 @@ class WhisperModel(ABC):
         return responses
 
     @torch.no_grad()
-    def transcribe_with_vad(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8):
+    def transcribe_with_vad(self, audio_files, lang_codes=None, tasks=None, initial_prompts=None, batch_size=8, word_timestamps=True):
 
         lang_codes = fix_batch_param(lang_codes, 'en', len(audio_files))
         tasks = fix_batch_param(tasks, 'transcribe', len(audio_files))
@@ -170,13 +172,15 @@ class WhisperModel(ABC):
         with tqdm(total=len(audio_files)*100, desc=f"Transcribing") as pbar:
             for signals, prompts, seq_len, seg_metadata, pbar_update in self.data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size):
                 mels, main_seq_len = self.preprocessor(signals, seq_len)
-                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len)
-                res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device), align_seq_len)
+                align_mels, align_seq_len = self.align_preprocessor(signals, seq_len) if word_timestamps else (None, None)
+                res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device) if align_mels is not None else None, align_seq_len)
 
                 for segment in res:
+                    start_time = round(segment['word_timestamps'][0]['start'], 3) if word_timestamps else segment['start_time']
+                    end_time = round(segment['word_timestamps'][-1]['end'], 3) if word_timestamps else segment['end_time']
                     responses[0].append({**segment,
-                                         'start_time': round(segment['word_timestamps'][0]['start'], 3),
-                                         'end_time': round(segment['word_timestamps'][-1]['end'], 3)})
+                                         'start_time': start_time,
+                                         'end_time': end_time})
                 
                 if (pbar_pos) <= pbar.total:
                     pbar_pos += pbar_update
