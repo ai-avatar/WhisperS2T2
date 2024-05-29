@@ -238,6 +238,7 @@ class WhisperModelCT2(WhisperModel):
         tokens = [[]]
         group = 0
         groups_per_segment = []
+        group_timestamps = []
         for i, segment in enumerate(result):
             for token in segment.sequences_ids[0]:
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
@@ -247,10 +248,15 @@ class WhisperModelCT2(WhisperModel):
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
 
+                if token >= self.tokenizer.timestamp_begin:
+                    group_timestamps.append(token - self.tokenizer.timestamp_begin)
+
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
         text_groups = self.tokenizer.decode_batch(tokens)
+        print(group_timestamps)
+        print(self.tokenizer.decode(group_timestamps))
 
         texts = []
         for idx, num_groups in enumerate(groups_per_segment):
@@ -260,7 +266,7 @@ class WhisperModelCT2(WhisperModel):
         for idx, r in enumerate(text_groups):
             response.append({'text': text_groups[idx].strip()})
 
-        if self.asr_options['word_timestamps']:
+        if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
