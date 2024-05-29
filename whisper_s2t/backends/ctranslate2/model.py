@@ -172,6 +172,9 @@ class WhisperModelCT2(WhisperModel):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
+        if len(word_tokens) == 0:
+            return []
+
         start_seq_wise_req = {}
         for _idx, _sot_seq in enumerate(sot_seqs):
             try:
@@ -193,17 +196,10 @@ class WhisperModelCT2(WhisperModel):
 
         word_timings = []
         for _idx, _seg_metadata in enumerate(seg_metadata):
-            try:
-                _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
-                                                        token_alignments[_idx].text_token_probs, 
-                                                        word_tokens[_idx][0], 
-                                                        word_tokens[_idx][1])
-            except:
-                print(f"Error in segment {_idx}")
-                print("texts", texts)
-                print("lang_codes", lang_codes)
-                print("word_tokens", word_tokens)
-                raise
+            _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
+                                                    token_alignments[_idx].text_token_probs, 
+                                                    word_tokens[_idx][0], 
+                                                    word_tokens[_idx][1])
         
             stitched_seg = _seg_metadata['stitched_seg']
 
