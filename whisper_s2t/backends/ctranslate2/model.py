@@ -225,6 +225,7 @@ class WhisperModelCT2(WhisperModel):
         else:
             features = features.contiguous()
 
+        print("prompts", prompts)
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
                                      **self.generate_kwargs)
