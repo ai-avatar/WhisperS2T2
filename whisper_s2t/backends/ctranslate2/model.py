@@ -249,7 +249,7 @@ class WhisperModelCT2(WhisperModel):
                     tokens[group].append(token)
 
                 if token >= self.tokenizer.timestamp_begin:
-                    group_timestamps.append(token)
+                    group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
 
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
@@ -265,7 +265,7 @@ class WhisperModelCT2(WhisperModel):
         
         response = []
         for idx, r in enumerate(text_groups):
-            response.append({'text': text_groups[idx].strip()})
+            response.append({'text': text_groups[idx].strip(), 'start_time': group_timestamps[idx*2], 'end_time': group_timestamps[idx*2+1]})
 
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
