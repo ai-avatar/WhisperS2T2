@@ -256,7 +256,7 @@ class WhisperModelCT2(WhisperModel):
 
         text_groups = self.tokenizer.decode_batch(tokens)
         print(group_timestamps)
-        print(self.tokenizer.decode(group_timestamps))
+        print(self.tokenizer.decode_batch(group_timestamps))
 
         texts = []
         for idx, num_groups in enumerate(groups_per_segment):
