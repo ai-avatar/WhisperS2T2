@@ -249,13 +249,14 @@ class WhisperModelCT2(WhisperModel):
                     tokens[group].append(token)
 
                 if token >= self.tokenizer.timestamp_begin:
-                    group_timestamps.append(token - self.tokenizer.timestamp_begin)
+                    group_timestamps.append(token)
 
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
         text_groups = self.tokenizer.decode_batch(tokens)
         print(group_timestamps)
+        print(self.tokenizer.timestamp_begin)
         print(self.tokenizer.decode_batch([group_timestamps]))
 
         texts = []
