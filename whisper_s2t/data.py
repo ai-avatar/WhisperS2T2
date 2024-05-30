@@ -211,6 +211,7 @@ class WhisperDataLoader:
         pbar_update_len = {}
         for file_id, (audio_signal, lang, task, initial_prompt) in enumerate(zip(audio_files, lang_codes, tasks, initial_prompts)):
             start_ends, audio_signal = self.speech_segmenter(audio_signal=audio_signal)
+            print("start_ends", start_ends)
             new_segmented_audio_signal = self.get_segmented_audio_signal(start_ends, audio_signal, file_id, lang, task, initial_prompt)
             pbar_update_len[file_id] = 1/len(new_segmented_audio_signal)
             
