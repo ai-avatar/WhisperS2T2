@@ -180,12 +180,10 @@ class WhisperModel(ABC):
                 res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device) if align_mels is not None else None, align_seq_len)
 
                 for segment in res:
-                    try:
-                        start_time = round(segment['word_timestamps'][0]['start'], 3) if word_timestamps else segment['start_time']
-                        end_time = round(segment['word_timestamps'][-1]['end'], 3) if word_timestamps else segment['end_time']
-                    except:
-                        print("segment", segment)
-                        raise
+                    print("lang_codes", lang_codes)
+                    print("segment", segment)
+                    start_time = round(segment['word_timestamps'][0]['start'], 3) if len(segment['word_timestamps']) else segment['start_time']
+                    end_time = round(segment['word_timestamps'][-1]['end'], 3) if len(segment['word_timestamps'])  else segment['end_time']
                     responses[0].append({**segment,
                                          'start_time': start_time,
                                          'end_time': end_time})

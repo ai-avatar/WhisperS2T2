@@ -229,6 +229,8 @@ class WhisperModelCT2(WhisperModel):
                                      prompts,
                                      **self.generate_kwargs)
         
+        print("Result:", result)
+        print("Result2:", self.tokenizer.decode_batch(result))
         
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
