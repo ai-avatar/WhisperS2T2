@@ -230,7 +230,7 @@ class WhisperModelCT2(WhisperModel):
                                      **self.generate_kwargs)
         
         print("Result:", result)
-        print("Result2:", self.tokenizer.decode_batch(result))
+        print("Result2:", self.tokenizer.decode_batch(result[0].sequences_ids))
         
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
