@@ -196,12 +196,13 @@ class WhisperModelCT2(WhisperModel):
 
         word_timings = []
         for _idx, _seg_metadata in enumerate(seg_metadata):
-            if len(word_tokens) > 0 and len(word_tokens[_idx]) > 0:
+            if _idx < len(word_tokens) and len(word_tokens[_idx]) >= 2:
                 align_words = word_tokens[_idx][0]
                 align_word_tokens = word_tokens[_idx][1]
             else:
-                print("No word tokens found for segment")
+                print("No word tokens found for segment", _idx)
                 print("Segment Texts:", texts)
+                print("word_tokens:", word_tokens)
                 print("meta:", seg_metadata)
                 align_words = []
                 align_word_tokens = []
