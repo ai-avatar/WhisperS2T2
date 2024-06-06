@@ -258,6 +258,9 @@ class WhisperModelCT2(WhisperModel):
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
             
+            if len(group_timestamps) == 0:
+                group_timestamps.append(round(seg_metadata[i]['start_time'], 3))
+
             # fallback to segment end_time if end time was not predicted
             if len(group_timestamps) % 2 == 1:
                 group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
