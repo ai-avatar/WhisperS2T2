@@ -135,7 +135,7 @@ class WhisperDataLoader:
         self.speech_segmenter = speech_segmenter
         self.basic_segmenter = BasicSegmenter(max_seg_len=max_speech_len)
         self.dta_padding = int(dta_padding*SAMPLE_RATE)
-        self.without_timestamps = without_timestamps
+        self.without_timestamps = without_timestamps # not used anymore
         self.max_speech_len = max_speech_len
         self.max_initial_prompt_len = max_initial_prompt_len
         self.use_dynamic_time_axis = use_dynamic_time_axis
@@ -163,7 +163,7 @@ class WhisperDataLoader:
         else:
             return signal_batch, prompt_batch, seq_len
     
-    def get_segmented_audio_signal(self, start_ends, audio_signal, file_id, lang, task, initial_prompt, sr=16000):
+    def get_segmented_audio_signal(self, start_ends, audio_signal, file_id, lang, task, initial_prompt, without_timestamps, sr=16000):
 
         if initial_prompt:
             initial_prompt = " " + initial_prompt.strip()
@@ -173,7 +173,7 @@ class WhisperDataLoader:
 
         prompt = self.tokenizer.sot_sequence(task=task, lang=lang)
         
-        if self.without_timestamps:
+        if without_timestamps:
             prompt.append(self.tokenizer.no_timestamps)
         else:
             prompt.append(self.tokenizer.timestamp_begin)
@@ -205,13 +205,13 @@ class WhisperDataLoader:
 
         return segmented_audio_signal
     
-    def get_data_loader_with_vad(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16):
+    def get_data_loader_with_vad(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16, without_timestamps=True):
 
         segmented_audio_signal = []
         pbar_update_len = {}
         for file_id, (audio_signal, lang, task, initial_prompt) in enumerate(zip(audio_files, lang_codes, tasks, initial_prompts)):
             start_ends, audio_signal = self.speech_segmenter(audio_signal=audio_signal)
-            new_segmented_audio_signal = self.get_segmented_audio_signal(start_ends, audio_signal, file_id, lang, task, initial_prompt)
+            new_segmented_audio_signal = self.get_segmented_audio_signal(start_ends, audio_signal, file_id, lang, task, initial_prompt, without_timestamps=without_timestamps)
             pbar_update_len[file_id] = 1/len(new_segmented_audio_signal)
             
             segmented_audio_signal = segmented_audio_signal + new_segmented_audio_signal
@@ -230,7 +230,7 @@ class WhisperDataLoader:
 
         yield signal_batch, prompt_batch, seq_len, seg_metadata, pbar_update
     
-    def get_data_loader(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16):
+    def get_data_loader(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16, without_timestamps=True):
         
         # dataset = WhisperDataset(audio_files, lang_codes, tasks, initial_prompts, self.tokenizer, 
         #                          without_timestamps=self.without_timestamps,
@@ -245,7 +245,7 @@ class WhisperDataLoader:
         pbar_update_len = {}
         for file_id, (audio_signal, lang, task, initial_prompt) in enumerate(zip(audio_files, lang_codes, tasks, initial_prompts)):
             start_ends, audio_signal = self.basic_segmenter(audio_signal=audio_signal)
-            new_segmented_audio_signal = self.get_segmented_audio_signal(start_ends, audio_signal, file_id, lang, task, initial_prompt)
+            new_segmented_audio_signal = self.get_segmented_audio_signal(start_ends, audio_signal, file_id, lang, task, initial_prompt, without_timestamps=without_timestamps)
             pbar_update_len[file_id] = 1/len(new_segmented_audio_signal)
             
             segmented_audio_signal = segmented_audio_signal + new_segmented_audio_signal
@@ -264,8 +264,8 @@ class WhisperDataLoader:
 
         yield signal_batch, prompt_batch, seq_len, seg_metadata, pbar_update
     
-    def __call__(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16, use_vad=True):
+    def __call__(self, audio_files, lang_codes, tasks, initial_prompts, batch_size=16, without_timestamps=True, use_vad=True):
         if use_vad:
-            return self.get_data_loader_with_vad(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size)
+            return self.get_data_loader_with_vad(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size, without_timestamps=without_timestamps)
         else:
-            return self.get_data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size)
+            return self.get_data_loader(audio_files, lang_codes, tasks, initial_prompts, batch_size=batch_size, without_timestamps=without_timestamps)
