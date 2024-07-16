@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from transformers.utils import is_flash_attn_2_available
 import ctranslate2
 
 from ..ctranslate2.hf_utils import download_model
@@ -15,7 +16,7 @@ ASR_OPTIONS = {
     "return_scores": False,
     "return_no_speech_prob": False,
     "use_flash_attention": True,
-    "use_better_transformer": False,
+    "use_better_transformer": False, # deprecated
     "word_aligner_model": "tiny",
     "aligner_model_instance": None,
 }
@@ -47,12 +48,9 @@ class WhisperModelHF(WhisperModel):
                                                                      torch_dtype=COMPUTE_TYPE_TO_TORCH_DTYPE.get(compute_type, torch.float32), 
                                                                      low_cpu_mem_usage=True, 
                                                                      use_safetensors=True,
-                                                                     use_flash_attention_2=self.asr_options["use_flash_attention"])
+                                                                     attn_implementation=("flash_attention_2" if is_flash_attn_2_available() else "sdpa"))
         self.model.config.forced_decoder_ids = None
         self.model.to(device).eval()
-
-        if self.asr_options["use_better_transformer"]:
-            self.model = self.model.to_bettertransformer()
 
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
