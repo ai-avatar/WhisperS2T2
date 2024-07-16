@@ -239,7 +239,7 @@ class WhisperModelCT2(WhisperModel):
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
                                      **self.generate_kwargs)
-        
+        print(result)
         
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]

@@ -84,6 +84,7 @@ class WhisperModelHF(WhisperModel):
                                                 language=lang,
                                                 **self.generate_kwargs)
         
+            print(predicted_ids)
             results = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)
 
             for idx, text in zip(idx_list, results):
