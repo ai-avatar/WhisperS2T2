@@ -79,15 +79,71 @@ class WhisperModelHF(WhisperModel):
 
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
-            predicted_ids = self.model.generate(features[idx_list], 
+            result = self.model.generate(features[idx_list], 
                                                 task=task,
                                                 language=lang,
                                                 **self.generate_kwargs)
         
-            print(predicted_ids)
-            results = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)
+        # group tokens by utterance (separated by timestamp tokens)
+        tokens = [[]]
+        group = 0
+        groups_per_segment = []
+        group_timestamps = []
+        for i, segment in enumerate(result):
+            for token in segment.sequences_ids[0]:
+                if token > self.tokenizer.timestamp_begin and len(tokens[group]):
+                    tokens.append([])
+                    groups_per_segment.append(len(tokens[group]))
+                    group += 1
+                elif token < self.tokenizer.eot:
+                    tokens[group].append(token)
 
-            for idx, text in zip(idx_list, results):
-                response[idx]['text'] = text.strip()
+                if token >= self.tokenizer.timestamp_begin:
+                    group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
+            
+            if len(group_timestamps) == 0:
+                group_timestamps.append(round(seg_metadata[i]['start_time'], 3))
+
+            # fallback to segment end_time if end time was not predicted
+            if len(group_timestamps) % 2 == 1:
+                group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
+
+        if len(tokens[-1]) == 0:
+            tokens = tokens[:-1]
+
+        text_groups = self.tokenizer.decode_batch(tokens)
+
+        texts = []
+        for idx, num_groups in enumerate(groups_per_segment):
+            texts.append(" ".join(text_groups[idx:num_groups+idx]))
+        
+        response = []
+        for idx, r in enumerate(text_groups):
+            response.append({'text': text_groups[idx].strip(),
+                             'start_time': group_timestamps[idx*2],
+                             'end_time': group_timestamps[idx*2+1]})
+
+        # TODO: implement align_words for HF models
+        # if align_features is not None:
+        #     text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
+        #     sot_seqs = [tuple(_[-4:]) for _ in prompts]
+        #     word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
+
+        #     offset = 0
+        #     flat_word_timings = [word for sublist in word_timings for word in sublist]
+        #     for idx, segment in enumerate(response):
+        #         segment_length = len(segment['text'].replace(" ", ""))
+        #         words = []
+        #         empty_words = 0
+        #         for word_timing in flat_word_timings[offset:]:
+        #             if word_timing['word'] == '':
+        #                 empty_words += 1
+        #                 continue
+        #             words.append(word_timing)
+        #             segment_length -= len(word_timing['word'])
+        #             if segment_length <= 0:
+        #                 offset += len(words) + empty_words
+        #                 break
+        #         segment['word_timestamps'] = words
 
         return response
