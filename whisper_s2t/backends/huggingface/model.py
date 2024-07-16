@@ -16,6 +16,7 @@ ASR_OPTIONS = {
     "return_no_speech_prob": False,
     "use_flash_attention": True,
     "use_better_transformer": False,
+    "word_aligner_model": "tiny",
     "aligner_model_instance": None,
 }
 
