@@ -83,7 +83,7 @@ class WhisperModelHF(WhisperModel):
                                                 task=task,
                                                 language=lang,
                                                 **self.generate_kwargs)
-        
+        print(result)
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
