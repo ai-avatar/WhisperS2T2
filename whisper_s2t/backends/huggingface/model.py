@@ -90,7 +90,7 @@ class WhisperModelHF(WhisperModel):
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
-            for token in segment.sequences_ids[0]:
+            for token in segment[0]:
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
                     groups_per_segment.append(len(tokens[group]))
