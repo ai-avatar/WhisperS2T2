@@ -91,8 +91,10 @@ class WhisperModelCT2(WhisperModel):
         # ASR Options
         self.asr_options = FAST_ASR_OPTIONS
         self.asr_options.update(asr_options)
-
-        if self.asr_options['word_timestamps']:
+        
+        if self.asr_options["aligner_model_instance"]:
+            self.aligner_model = self.asr_options["aligner_model_instance"]
+        else:
             self.aligner_model_path = download_model(self.asr_options['word_aligner_model'])
             self.aligner_model = ctranslate2.models.Whisper(self.aligner_model_path,
                                                             device=device,
