@@ -20,6 +20,9 @@ COMPUTE_TYPE_TO_TORCH_DTYPE = {
     "float16": torch.float16
 }
 
+TOKEN_TIMESTAMP_BEGIN = 50365
+TOKEN_EOT = 50257
+
 
 class WhisperModelHF(WhisperModel):
     def __init__(self,
@@ -93,15 +96,15 @@ class WhisperModelHF(WhisperModel):
             print("segment", segment)
             for token in segment:
                 print("token", token)
-                if token > self.tokenizer.timestamp_begin and len(tokens[group]):
+                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group]):
                     tokens.append([])
                     groups_per_segment.append(len(tokens[group]))
                     group += 1
-                elif token < self.tokenizer.eot:
+                elif token < TOKEN_EOT:
                     tokens[group].append(token)
 
-                if token >= self.tokenizer.timestamp_begin:
-                    group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
+                if token >= TOKEN_TIMESTAMP_BEGIN:
+                    group_timestamps.append((token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION)
             
             if len(group_timestamps) == 0:
                 group_timestamps.append(round(seg_metadata[i]['start_time'], 3))
@@ -113,7 +116,7 @@ class WhisperModelHF(WhisperModel):
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
-        text_groups = self.tokenizer.decode_batch(tokens)
+        text_groups = self.processor.batch_decode(tokens)
 
         texts = []
         for idx, num_groups in enumerate(groups_per_segment):
@@ -127,7 +130,7 @@ class WhisperModelHF(WhisperModel):
 
         # TODO: implement align_words for HF models
         # if align_features is not None:
-        #     text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
+        #     text_tokens = [x.sequences_ids[0]+[TOKEN_EOT] for x in result]
         #     sot_seqs = [tuple(_[-4:]) for _ in prompts]
         #     word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
