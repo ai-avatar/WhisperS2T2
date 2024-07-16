@@ -31,6 +31,7 @@ FAST_ASR_OPTIONS = {
     "return_scores": True,
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
+    "aligner_model_instance": None,
 }
 
 
@@ -54,6 +55,7 @@ BEST_ASR_CONFIG = {
     "return_scores": True,
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
+    "aligner_model_instance": None,
 }
 
 
@@ -91,7 +93,7 @@ class WhisperModelCT2(WhisperModel):
         # ASR Options
         self.asr_options = FAST_ASR_OPTIONS
         self.asr_options.update(asr_options)
-        
+
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
         else:
