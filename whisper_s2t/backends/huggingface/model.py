@@ -197,6 +197,7 @@ class WhisperModelHF(WhisperModel):
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
+            print(i)
             for token in segment:
                 if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group]):
                     tokens.append([])
