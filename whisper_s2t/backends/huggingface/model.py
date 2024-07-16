@@ -15,7 +15,7 @@ ASR_OPTIONS = {
     "without_timestamps": True,
     "return_scores": False,
     "return_no_speech_prob": False,
-    "use_flash_attention": True,
+    "use_flash_attention": True, # deprecated
     "use_better_transformer": False, # deprecated
     "word_aligner_model": "tiny",
     "aligner_model_instance": None,
@@ -190,7 +190,6 @@ class WhisperModelHF(WhisperModel):
                                                 task=task,
                                                 language=lang,
                                                 **self.generate_kwargs)
-        print(result)
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
