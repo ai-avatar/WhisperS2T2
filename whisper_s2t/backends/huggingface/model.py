@@ -195,7 +195,7 @@ class WhisperModelHF(WhisperModel):
             if 'prompt_ids' in self.generate_kwargs and self.generate_kwargs['prompt_ids'] is not None:
                 for i, segment in enumerate(result):
                     removed_tokens = segment[:len(self.generate_kwargs['prompt_ids'])]
-                    if torch.equal(removed_tokens, self.generate_kwargs['prompt_ids']):
+                    if not torch.equal(removed_tokens, self.generate_kwargs['prompt_ids']):
                         print(f"Prompt tokens mismatch: {removed_tokens} != {self.generate_kwargs['prompt_ids']}")
 
                 result = [segment[len(self.generate_kwargs['prompt_ids']):] for segment in result]
