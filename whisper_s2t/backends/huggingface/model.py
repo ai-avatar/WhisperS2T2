@@ -191,13 +191,21 @@ class WhisperModelHF(WhisperModel):
                                                 task=task,
                                                 language=lang,
                                                 **self.generate_kwargs)
+            # remove prompt tokens
+            if 'prompt_ids' in self.generate_kwargs and self.generate_kwargs['prompt_ids'] is not None:
+                for i, segment in enumerate(result):
+                    removed_tokens = segment[:len(self.generate_kwargs['prompt_ids'])]
+                    if removed_tokens != self.generate_kwargs['prompt_ids']:
+                        print(f"Prompt tokens mismatch: {removed_tokens} != {self.generate_kwargs['prompt_ids']}")
+
+                result = [segment[len(self.generate_kwargs['prompt_ids']):] for segment in result]
+
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
-            print(i)
             for token in segment:
                 if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group]):
                     tokens.append([])
