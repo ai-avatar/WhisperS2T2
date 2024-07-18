@@ -45,6 +45,9 @@ class Tokenizer:
     def timestamp_begin(self) -> int:
         return self.no_timestamps + 1
 
+    def sot_sequence(self, task=None, lang=None):
+        return [task, lang]
+
     def encode(self, text):
         return self.tokenizer.encode(text, add_special_tokens=False)
 
