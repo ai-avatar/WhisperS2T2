@@ -63,9 +63,8 @@ class Tokenizer:
     def sot_sequence(self, task=None, lang=None):
         sequence = [self.sot]
         
-        if self.multilingual:
-            sequence.append(self.lang_code_to_token_id[lang])
-            sequence.append(self.task_to_token_id[task])
+        sequence.append(self.lang_code_to_token_id[lang])
+        sequence.append(self.task_to_token_id[task])
 
         return sequence
 
