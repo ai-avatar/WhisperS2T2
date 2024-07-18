@@ -76,6 +76,7 @@ class WhisperModelHF(WhisperModel):
             **model_kwargs
         )
 
+    # deprecated
     def update_generation_kwargs(self, params={}):
         self.generate_kwargs.update(params)
 
@@ -172,7 +173,7 @@ class WhisperModelHF(WhisperModel):
 
         return word_timings
     
-    def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens):
+    def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens, generation_kwargs={}):
         if self.compute_type == "float16":
             features = features.to(self.device).half()
 
@@ -190,15 +191,10 @@ class WhisperModelHF(WhisperModel):
             result = self.model.generate(features[idx_list], 
                                                 task=task,
                                                 language=lang,
-                                                **self.generate_kwargs)
-            # remove prompt tokens
-            if 'prompt_ids' in self.generate_kwargs and self.generate_kwargs['prompt_ids'] is not None:
-                for i, segment in enumerate(result):
-                    removed_tokens = segment[:len(self.generate_kwargs['prompt_ids'])]
-                    if not torch.equal(removed_tokens, self.generate_kwargs['prompt_ids']):
-                        print(f"Prompt tokens mismatch: {removed_tokens} != {self.generate_kwargs['prompt_ids']}")
-
-                result = [segment[len(self.generate_kwargs['prompt_ids']):] for segment in result]
+                                                **(self.generate_kwargs | generation_kwargs))
+            # remove prompt tokens from the result
+            if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
+                result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
 
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
