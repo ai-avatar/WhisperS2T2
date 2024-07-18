@@ -2,9 +2,24 @@
 import os
 from functools import cached_property
 
+from ... import BASE_PATH
+
+
+_TASKS = (
+    "transcribe",
+    "translate",
+)
+
+
+with open(os.path.join(BASE_PATH, "assets/lang_codes.txt"), 'r') as f:
+    _LANGUAGE_CODES = [_ for _ in f.read().split("\n") if _]
+
 class Tokenizer:
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
+        
+        self.task_to_token_id = {task: self.tokenizer.token_to_id(f"<|{task}|>") for task in _TASKS}
+        self.lang_code_to_token_id = {lang: self.tokenizer.token_to_id(f"<|{lang}|>") for lang in _LANGUAGE_CODES}
 
     def token_to_id(self, token):
         return self.tokenizer(token, add_special_tokens=False).input_ids[0]
@@ -46,7 +61,13 @@ class Tokenizer:
         return self.no_timestamps + 1
 
     def sot_sequence(self, task=None, lang=None):
-        return [task, lang]
+        sequence = [self.sot]
+        
+        if self.multilingual:
+            sequence.append(self.lang_code_to_token_id[lang])
+            sequence.append(self.task_to_token_id[task])
+
+        return sequence
 
     def encode(self, text):
         return self.tokenizer.encode(text, add_special_tokens=False)
