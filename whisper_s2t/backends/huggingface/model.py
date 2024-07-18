@@ -8,6 +8,7 @@ import ctranslate2
 from ..ctranslate2.hf_utils import download_model
 from .. import WhisperModel
 from ...configs import *
+from .tokenizer import Tokenizer
 
 
 ASR_OPTIONS = {
@@ -69,7 +70,10 @@ class WhisperModelHF(WhisperModel):
             "return_timestamps": not self.asr_options['without_timestamps'],
         }
 
+        tokenizer = Tokenizer(self.processor.tokenizer)
+
         super().__init__(
+            tokenizer=tokenizer,
             device=device,
             compute_type=compute_type,
             max_text_token_len=max_text_token_len,
@@ -114,7 +118,7 @@ class WhisperModelHF(WhisperModel):
 
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
-        word_tokens = self.processor.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
+        word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
         if len(word_tokens) == 0:
             return []
