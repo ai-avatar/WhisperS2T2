@@ -233,7 +233,7 @@ class WhisperModelCT2(WhisperModel):
 
         return word_timings
     
-    def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens):
+    def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens, generation_kwargs={}):
         
         if self.device == 'cpu':
             features = np.ascontiguousarray(features.detach().numpy())
@@ -243,7 +243,6 @@ class WhisperModelCT2(WhisperModel):
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
                                      **self.generate_kwargs)
-        print(result)
         
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
