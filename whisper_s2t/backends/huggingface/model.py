@@ -179,7 +179,6 @@ class WhisperModelHF(WhisperModel):
 
         lang_and_task_pairs = {}
         for _i, _p in enumerate(prompts):
-            print(_p)
             try:
                 lang_and_task_pairs[(_p[-3], _p[-2])].append(_i)
             except:
