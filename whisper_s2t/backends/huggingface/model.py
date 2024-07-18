@@ -240,7 +240,7 @@ class WhisperModelHF(WhisperModel):
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
-            sot_seqs = [tuple(_[-4:]) for _ in prompts]
+            sot_seqs = [tuple(self.tokenizer.align_sot_sequence(prompt[0], prompt[1])) for prompt in prompts]
             word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
             offset = 0

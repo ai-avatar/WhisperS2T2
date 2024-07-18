@@ -61,10 +61,15 @@ class Tokenizer:
         return self.no_timestamps + 1
 
     def sot_sequence(self, task=None, lang=None):
+        return [task, lang]
+    
+    def align_sot_sequence(self, task=None, lang=None):
         sequence = [self.sot]
         
         sequence.append(self.lang_code_to_token_id[lang])
         sequence.append(self.task_to_token_id[task])
+
+        sequence.append(self.timestamp_begin)
 
         return sequence
 
