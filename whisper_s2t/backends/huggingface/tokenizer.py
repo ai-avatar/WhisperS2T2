@@ -17,9 +17,9 @@ with open(os.path.join(BASE_PATH, "assets/lang_codes.txt"), 'r') as f:
 class Tokenizer:
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
-        
-        self.task_to_token_id = {task: self.tokenizer.token_to_id(f"<|{task}|>") for task in _TASKS}
-        self.lang_code_to_token_id = {lang: self.tokenizer.token_to_id(f"<|{lang}|>") for lang in _LANGUAGE_CODES}
+
+        self.task_to_token_id = {task: self.token_to_id(f"<|{task}|>") for task in _TASKS}
+        self.lang_code_to_token_id = {lang: self.token_to_id(f"<|{lang}|>") for lang in _LANGUAGE_CODES}
 
     def token_to_id(self, token):
         return self.tokenizer(token, add_special_tokens=False).input_ids[0]
