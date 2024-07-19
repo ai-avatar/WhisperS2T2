@@ -133,10 +133,11 @@ class WhisperModelHF(WhisperModel):
 
         token_alignments = [[] for _ in seg_metadata]
         for start_seq, req_idx in start_seq_wise_req.items():
+            adjusted_num_frames = [min(frame, MAX_TEXT_TOKEN_LENGTH) for frame in seq_lens[req_idx].detach().cpu().numpy()]
             res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
                                            start_sequence=list(start_seq), 
                                            text_tokens=[text_tokens[_] for _ in req_idx],
-                                           num_frames=list(seq_lens[req_idx].detach().cpu().numpy()), 
+                                           num_frames=adjusted_num_frames, 
                                            median_filter_width=7)
 
             for _res, _req_idx in zip(res, req_idx):
