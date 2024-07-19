@@ -142,6 +142,7 @@ class WhisperModelHF(WhisperModel):
                                             median_filter_width=7)
             except Exception as e:
                 print("Error in aligning words:")
+                print("features:", features[req_idx])
                 print("start_seq:", start_seq)
                 print("text_tokens:", [text_tokens[_] for _ in req_idx])
                 print("num_frames:", adjusted_num_frames)
