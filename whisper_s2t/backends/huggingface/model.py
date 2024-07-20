@@ -138,6 +138,7 @@ class WhisperModelHF(WhisperModel):
             print("feature shape:", features[req_idx].shape)
             print("start_seq:", start_seq)
             print("text_tokens:", [text_tokens[_] for _ in req_idx])
+            print("unadjusted_num_frames:", list(seq_lens[req_idx].detach().cpu().numpy()))
             print("num_frames:", adjusted_num_frames)
             try:
                 res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
