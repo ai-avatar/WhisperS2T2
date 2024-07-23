@@ -173,14 +173,6 @@ class WhisperModelCT2(WhisperModel):
         ]
 
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
-        print("Aligning words")
-        print("features", features)
-        print("texts", texts)
-        print("text_tokens", text_tokens)
-        print("sot_seqs", sot_seqs)
-        print("seq_lens", seq_lens)
-        print("seg_metadata", seg_metadata)
-        print("###")
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 

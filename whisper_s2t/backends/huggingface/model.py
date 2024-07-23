@@ -115,16 +115,19 @@ class WhisperModelHF(WhisperModel):
                 words, start_times, end_times, word_probs
             )
         ]
+    
+    def filter_array(self, arr):
+        start_value = 50365 # SOT
+        end_value = 50257 # EOT
+        try:
+            start_index = arr.index(start_value)
+            end_index = arr.index(end_value, start_index)
+            return arr[start_index:end_index+1]
+        except ValueError as e:
+            return arr
 
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
-        print("Aligning words")
-        print("features", features)
-        print("texts", texts)
-        print("text_tokens", text_tokens)
-        print("sot_seqs", sot_seqs)
-        print("seq_lens", seq_lens)
-        print("seg_metadata", seg_metadata)
-        print("###")
+        text_tokens = [self.filter_array(x) for x in text_tokens]
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
@@ -141,11 +144,6 @@ class WhisperModelHF(WhisperModel):
 
         token_alignments = [[] for _ in seg_metadata]
         for start_seq, req_idx in start_seq_wise_req.items():
-            print("features:", features[req_idx])
-            print("feature shape:", features[req_idx].shape)
-            print("start_seq:", start_seq)
-            print("text_tokens:", [text_tokens[_] for _ in req_idx])
-            print("num_frames:", list(seq_lens[req_idx].detach().cpu().numpy()))
             try:
                 res = self.aligner_model.align(ctranslate2.StorageView.from_array(features[req_idx]), 
                                             start_sequence=list(start_seq), 
@@ -154,6 +152,11 @@ class WhisperModelHF(WhisperModel):
                                             median_filter_width=7)
             except Exception as e:
                 print("Error in aligning words:")
+                print("features:", features[req_idx])
+                print("feature shape:", features[req_idx].shape)
+                print("start_seq:", start_seq)
+                print("text_tokens:", [text_tokens[_] for _ in req_idx])
+                print("num_frames:", list(seq_lens[req_idx].detach().cpu().numpy()))
                 raise e
 
             for _res, _req_idx in zip(res, req_idx):
@@ -212,7 +215,6 @@ class WhisperModelHF(WhisperModel):
                                                 task=task,
                                                 language=lang,
                                                 **(self.generate_kwargs | generation_kwargs))
-            print("result:", result)
             # remove prompt tokens from the result
             if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
