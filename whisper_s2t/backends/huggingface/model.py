@@ -121,10 +121,13 @@ class WhisperModelHF(WhisperModel):
         end_value = 50257 # EOT
         try:
             start_index = arr.index(start_value)
+        except ValueError:
+            start_index = 0
+        try:
             end_index = arr.index(end_value, start_index)
-            return arr[start_index:end_index+1]
-        except ValueError as e:
-            return arr
+        except ValueError:
+            end_index = len(arr)-1
+        return arr[start_index:end_index+1]
 
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
         text_tokens = [self.filter_array(x) for x in text_tokens]
