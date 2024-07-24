@@ -243,6 +243,7 @@ class WhisperModelHF(WhisperModel):
             if len(group_timestamps) % 2 == 1:
                 group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
 
+        # remove last empty token list
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
@@ -253,10 +254,18 @@ class WhisperModelHF(WhisperModel):
             texts.append(" ".join(text_groups[idx:num_groups+idx]))
         
         response = []
-        for idx, r in enumerate(text_groups):
-            response.append({'text': text_groups[idx].strip(),
-                             'start_time': group_timestamps[idx*2],
-                             'end_time': group_timestamps[idx*2+1]})
+        try:
+            for idx, r in enumerate(text_groups):
+                response.append({'text': text_groups[idx].strip(),
+                                'start_time': group_timestamps[idx*2],
+                                'end_time': group_timestamps[idx*2+1]})
+        except:
+            print("Error in generating segments:")
+            print("tokens:", tokens)
+            print("text_groups:", text_groups)
+            print("group_timestamps:", group_timestamps)
+            print("groups_per_segment:", groups_per_segment)
+            raise
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
