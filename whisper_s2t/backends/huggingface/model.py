@@ -115,22 +115,8 @@ class WhisperModelHF(WhisperModel):
                 words, start_times, end_times, word_probs
             )
         ]
-    
-    def filter_array(self, arr):
-        start_value = 50365 # SOT
-        end_value = 50257 # EOT
-        try:
-            start_index = arr.index(start_value)
-        except ValueError:
-            start_index = 0
-        try:
-            end_index = arr.index(end_value, start_index)
-        except ValueError:
-            end_index = len(arr)-1
-        return arr[start_index:end_index+1]
 
     def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
-        text_tokens = [self.filter_array(x) for x in text_tokens]
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
