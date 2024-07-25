@@ -224,17 +224,17 @@ class WhisperModelHF(WhisperModel):
 
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
-        group = 0
+        group_idx = 0
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
             for token in segment:
-                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group]):
+                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]):
                     tokens.append([])
-                    groups_per_segment.append(len(tokens[group]))
-                    group += 1
+                    groups_per_segment.append(len(tokens[group_idx]))
+                    group_idx += 1
                 elif token < TOKEN_EOT:
-                    tokens[group].append(token)
+                    tokens[group_idx].append(token)
 
                 if token >= TOKEN_TIMESTAMP_BEGIN:
                     group_timestamps.append((token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION)
@@ -264,6 +264,7 @@ class WhisperModelHF(WhisperModel):
                                 'end_time': group_timestamps[idx*2+1]})
         except:
             print("Error in generating segments:")
+            print("result:", result)
             print("tokens:", tokens)
             print("text_groups:", text_groups)
             print("group_timestamps:", group_timestamps)
