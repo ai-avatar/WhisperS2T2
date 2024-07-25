@@ -251,8 +251,6 @@ class WhisperModelHF(WhisperModel):
             tokens = tokens[:-1]
 
         text_groups = self.processor.batch_decode(tokens)
-
-        texts = "".join(text_groups)
         
         response = []
         for idx, r in enumerate(text_groups):
@@ -260,7 +258,6 @@ class WhisperModelHF(WhisperModel):
                             'start_time': group_timestamps[idx*2],
                             'end_time': group_timestamps[idx*2+1]})
         print("Error in generating segments:")
-        print("texts:", texts)
         print("result:", result)
         print("tokens:", tokens)
         print("text_groups:", text_groups)
@@ -270,7 +267,7 @@ class WhisperModelHF(WhisperModel):
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
             sot_seqs = [tuple(self.tokenizer.align_sot_sequence(prompt[0], prompt[1])) for prompt in prompts]
-            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
+            word_timings = self.align_words(align_features, text_groups, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
             offset = 0
             flat_word_timings = [word for sublist in word_timings for word in sublist]
