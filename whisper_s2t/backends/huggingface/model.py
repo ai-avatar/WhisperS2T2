@@ -252,9 +252,7 @@ class WhisperModelHF(WhisperModel):
 
         text_groups = self.processor.batch_decode(tokens)
 
-        texts = []
-        for idx, num_groups in enumerate(tokens_per_group):
-            texts.append(" ".join(text_groups[idx:num_groups+idx]))
+        texts = "".join(text_groups)
         
         response = []
         for idx, r in enumerate(text_groups):
