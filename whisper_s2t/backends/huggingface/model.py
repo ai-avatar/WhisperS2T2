@@ -27,7 +27,7 @@ COMPUTE_TYPE_TO_TORCH_DTYPE = {
     "float16": torch.float16
 }
 
-TOKEN_TIMESTAMP_BEGIN = 50365
+TOKEN_TIMESTAMP_BEGIN = 50364
 TOKEN_EOT = 50257
 
 
@@ -225,26 +225,22 @@ class WhisperModelHF(WhisperModel):
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group_idx = 0
-        tokens_per_group = []
-        group_timestamps = []
+        group_timestamps = [round(seg_metadata[0]['start_time'], 3), round(seg_metadata[0]['end_time'], 3)]
         for i, segment in enumerate(result):
             for token in segment:
-                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]): # start new group
+                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]):
                     tokens.append([])
-                    tokens_per_group.append(len(tokens[group_idx]))
+                    group_timestamps[group_idx*2+1] = (token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION
                     group_idx += 1
+
+                    # set fallback timestamps for new group in case of missing timestamps
+                    group_timestamps.append(round(seg_metadata[i]['start_time'], 3))
+                    group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
                 elif token < TOKEN_EOT:
                     tokens[group_idx].append(token)
-
-                if token >= TOKEN_TIMESTAMP_BEGIN:
-                    group_timestamps.append((token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION)
-            
-            if len(group_timestamps) == 0:
-                group_timestamps.append(round(seg_metadata[i]['start_time'], 3))
-
-            # fallback to segment end_time if end time was not predicted
-            if len(group_timestamps) % 2 == 1:
-                group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
+                elif token >= TOKEN_TIMESTAMP_BEGIN:
+                    # start timestamp found
+                    group_timestamps[group_idx*2] = (token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION
 
         # remove last empty token list
         if len(tokens[-1]) == 0:
@@ -257,12 +253,6 @@ class WhisperModelHF(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                             'start_time': group_timestamps[idx*2],
                             'end_time': group_timestamps[idx*2+1]})
-        print("Error in generating segments:")
-        print("result:", result)
-        print("tokens:", tokens)
-        print("text_groups:", text_groups)
-        print("group_timestamps:", group_timestamps)
-        print("groups_per_segment:", tokens_per_group)
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
