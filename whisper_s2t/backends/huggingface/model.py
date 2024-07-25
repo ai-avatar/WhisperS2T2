@@ -225,13 +225,13 @@ class WhisperModelHF(WhisperModel):
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group_idx = 0
-        groups_per_segment = []
+        tokens_per_group = []
         group_timestamps = []
         for i, segment in enumerate(result):
             for token in segment:
-                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]):
+                if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]): # start new group
                     tokens.append([])
-                    groups_per_segment.append(len(tokens[group_idx]))
+                    tokens_per_group.append(len(tokens[group_idx]))
                     group_idx += 1
                 elif token < TOKEN_EOT:
                     tokens[group_idx].append(token)
@@ -253,23 +253,21 @@ class WhisperModelHF(WhisperModel):
         text_groups = self.processor.batch_decode(tokens)
 
         texts = []
-        for idx, num_groups in enumerate(groups_per_segment):
+        for idx, num_groups in enumerate(tokens_per_group):
             texts.append(" ".join(text_groups[idx:num_groups+idx]))
         
         response = []
-        try:
-            for idx, r in enumerate(text_groups):
-                response.append({'text': text_groups[idx].strip(),
-                                'start_time': group_timestamps[idx*2],
-                                'end_time': group_timestamps[idx*2+1]})
-        except:
-            print("Error in generating segments:")
-            print("result:", result)
-            print("tokens:", tokens)
-            print("text_groups:", text_groups)
-            print("group_timestamps:", group_timestamps)
-            print("groups_per_segment:", groups_per_segment)
-            raise
+        for idx, r in enumerate(text_groups):
+            response.append({'text': text_groups[idx].strip(),
+                            'start_time': group_timestamps[idx*2],
+                            'end_time': group_timestamps[idx*2+1]})
+        print("Error in generating segments:")
+        print("texts:", texts)
+        print("result:", result)
+        print("tokens:", tokens)
+        print("text_groups:", text_groups)
+        print("group_timestamps:", group_timestamps)
+        print("groups_per_segment:", tokens_per_group)
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
