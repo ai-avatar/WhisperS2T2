@@ -237,8 +237,8 @@ class WhisperModelHF(WhisperModel):
         response = []
         for idx, r in enumerate(text_groups):
             response.append({'text': text_groups[idx].strip(),
-                            'start_time': group_timestamps[idx*2],
-                            'end_time': group_timestamps[idx*2+1]})
+                            'start_time': float(group_timestamps[idx*2]),
+                            'end_time': float(group_timestamps[idx*2+1])})
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
