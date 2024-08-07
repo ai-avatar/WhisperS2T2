@@ -1,4 +1,5 @@
 import torch
+from torch.nn.attention import SDPBackend, sdpa_kernel
 import numpy as np
 
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
@@ -52,6 +53,10 @@ class WhisperModelHF(WhisperModel):
                                                                      attn_implementation=("flash_attention_2" if is_flash_attn_2_available() else "sdpa"))
         self.model.config.forced_decoder_ids = None
         self.model.to(device).eval()
+
+        # Enable static cache and compile the forward pass
+        self.model.generation_config.cache_implementation = "static"
+        self.model.forward = torch.compile(self.model.forward, mode="reduce-overhead", fullgraph=True)
 
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
@@ -200,10 +205,11 @@ class WhisperModelHF(WhisperModel):
 
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
-            result = self.model.generate(features[idx_list], 
-                                                task=task,
-                                                language=lang,
-                                                **(self.generate_kwargs | generation_kwargs))
+            with sdpa_kernel(SDPBackend.MATH):
+                result = self.model.generate(features[idx_list], 
+                                                    task=task,
+                                                    language=lang,
+                                                    **(self.generate_kwargs | generation_kwargs))
             # remove prompt tokens from the result
             if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
