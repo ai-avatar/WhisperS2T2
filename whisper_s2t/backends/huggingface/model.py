@@ -48,9 +48,10 @@ class WhisperModelHF(WhisperModel):
         self.model = WhisperForConditionalGeneration.from_pretrained(self.model_name, 
                                                                      torch_dtype=COMPUTE_TYPE_TO_TORCH_DTYPE.get(compute_type, torch.float32), 
                                                                      low_cpu_mem_usage=True, 
-                                                                     use_safetensors=True,)
+                                                                     use_safetensors=True,
+                                                                     attn_implementation=("flash_attention_2" if is_flash_attn_2_available() else "sdpa"))
         self.model.config.forced_decoder_ids = None
-        self.model.to(device).eval()
+        self.model.to(device)
 
         # Enable static cache and compile the forward pass
         self.model.generation_config.cache_implementation = "static"
