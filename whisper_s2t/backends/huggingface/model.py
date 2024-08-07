@@ -1,5 +1,4 @@
 import torch
-from torch.nn.attention import SDPBackend, sdpa_kernel
 import numpy as np
 
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
@@ -205,11 +204,10 @@ class WhisperModelHF(WhisperModel):
 
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
-            with sdpa_kernel(SDPBackend.MATH):
-                result = self.model.generate(features[idx_list], 
-                                                    task=task,
-                                                    language=lang,
-                                                    **(self.generate_kwargs | generation_kwargs))
+            result = self.model.generate(features[idx_list], 
+                                                task=task,
+                                                language=lang,
+                                                **(self.generate_kwargs | generation_kwargs))
             # remove prompt tokens from the result
             if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
