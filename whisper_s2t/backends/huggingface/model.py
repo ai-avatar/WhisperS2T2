@@ -51,7 +51,7 @@ class WhisperModelHF(WhisperModel):
                                                                      use_safetensors=True,
                                                                      attn_implementation=("flash_attention_2" if is_flash_attn_2_available() else "sdpa"))
         self.model.config.forced_decoder_ids = None
-        self.model.to(device)
+        self.model.to(device).eval()
 
         # Enable static cache and compile the forward pass
         self.model.generation_config.cache_implementation = "static"
@@ -208,6 +208,7 @@ class WhisperModelHF(WhisperModel):
                                                 task=task,
                                                 language=lang,
                                                 **(self.generate_kwargs | generation_kwargs))
+            print("DONE GENERATING")
             # remove prompt tokens from the result
             if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
