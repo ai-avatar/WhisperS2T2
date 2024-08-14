@@ -53,10 +53,6 @@ class WhisperModelHF(WhisperModel):
         self.model.config.forced_decoder_ids = None
         self.model.to(device).eval()
 
-        # Enable static cache and compile the forward pass
-        self.model.generation_config.cache_implementation = "static"
-        self.model.forward = torch.compile(self.model.forward, mode="reduce-overhead", fullgraph=True)
-
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
         else:
