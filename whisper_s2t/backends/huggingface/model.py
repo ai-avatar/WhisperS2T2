@@ -225,7 +225,9 @@ class WhisperModelHF(WhisperModel):
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
             has_prompt = 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None
-            with self.use_torch_compile(not has_prompt): # disable torch compile if prompt is present to avoid compilation overhead
+            # disable torch compile if prompt or custom logits_processor is present to avoid recompilation
+            use_torch_compile = not has_prompt and ('logits_processor' not in generation_kwargs or generation_kwargs['logits_processor'] is None or generation_kwargs['logits_processor'] == [])
+            with self.use_torch_compile(use_torch_compile):
                 result = self.model.generate(features[idx_list], 
                                                     task=task,
                                                     language=lang,
