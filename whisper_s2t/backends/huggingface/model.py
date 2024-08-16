@@ -4,6 +4,8 @@ import numpy as np
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from transformers.utils import is_flash_attn_2_available
 import ctranslate2
+import threading
+from contextlib import contextmanager
 
 from ..ctranslate2.hf_utils import download_model
 from .. import WhisperModel
@@ -53,6 +55,20 @@ class WhisperModelHF(WhisperModel):
         self.model.config.forced_decoder_ids = None
         self.model.to(device).eval()
 
+        # Enable static cache and compile the forward pass
+        self.model.generation_config.cache_implementation = "static"
+        self.model.use_compiled = threading.local()
+        self.model.use_compiled.value = True
+        def compile_forward_fn(forward_fn, **compile_kwargs):
+            compiled_forward = torch.compile(forward_fn, **compile_kwargs)
+            def wrapped_forward(*args, **kwargs):
+                if self.model.use_compiled.value:
+                    return compiled_forward(*args, **kwargs)
+                return forward_fn(*args, **kwargs)
+            return wrapped_forward
+        
+        self.model.forward = compile_forward_fn(self.model.forward, mode="reduce-overhead", fullgraph=True)
+
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
         else:
@@ -79,6 +95,14 @@ class WhisperModelHF(WhisperModel):
             max_text_token_len=max_text_token_len,
             **model_kwargs
         )
+
+    @contextmanager
+    def use_torch_compile(self, value: bool):
+        self.model.use_compiled.value = value
+        try:
+            yield
+        finally:
+            self.model.use_compiled.value = True
 
     # deprecated
     def update_generation_kwargs(self, params={}):
@@ -200,12 +224,14 @@ class WhisperModelHF(WhisperModel):
 
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
-            result = self.model.generate(features[idx_list], 
-                                                task=task,
-                                                language=lang,
-                                                **(self.generate_kwargs | generation_kwargs))
+            has_prompt = 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None
+            with self.use_torch_compile(not has_prompt): # disable torch compile if prompt is present to avoid compilation overhead
+                result = self.model.generate(features[idx_list], 
+                                                    task=task,
+                                                    language=lang,
+                                                    **(self.generate_kwargs | generation_kwargs))
             # remove prompt tokens from the result
-            if 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None:
+            if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
 
         # group tokens by utterance (separated by timestamp tokens)
