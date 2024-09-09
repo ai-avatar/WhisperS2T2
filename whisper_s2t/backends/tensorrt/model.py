@@ -34,6 +34,7 @@ FAST_ASR_OPTIONS = {
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
     "aligner_model_instance": None,
+    "torch_compile": False,
 }
 
 
@@ -58,6 +59,7 @@ BEST_ASR_CONFIG = {
     "return_no_speech_prob": True,
     "word_aligner_model": 'tiny',
     "aligner_model_instance": None,
+    "torch_compile": False,
 }
 
 

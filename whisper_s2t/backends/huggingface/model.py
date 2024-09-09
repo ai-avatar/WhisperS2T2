@@ -22,6 +22,7 @@ ASR_OPTIONS = {
     "use_better_transformer": False, # deprecated
     "word_aligner_model": "tiny",
     "aligner_model_instance": None,
+    "torch_compile": False,
 }
 
 
@@ -53,12 +54,8 @@ class WhisperModelHF(WhisperModel):
                                                                      use_safetensors=True,
                                                                      attn_implementation=("flash_attention_2" if is_flash_attn_2_available() else "sdpa"))
         self.model.config.forced_decoder_ids = None
-        self.model.to(device).eval()
+        self.model.to(device)
 
-        # Enable static cache and compile the forward pass
-        self.model.generation_config.cache_implementation = "static"
-        self.model.use_compiled = threading.local()
-        self.model.use_compiled.value = True
         def compile_forward_fn(forward_fn, **compile_kwargs):
             compiled_forward = torch.compile(forward_fn, **compile_kwargs)
             def wrapped_forward(*args, **kwargs):
@@ -66,8 +63,13 @@ class WhisperModelHF(WhisperModel):
                     return compiled_forward(*args, **kwargs)
                 return forward_fn(*args, **kwargs)
             return wrapped_forward
-        
-        self.model.forward = compile_forward_fn(self.model.forward, mode="reduce-overhead", fullgraph=True)
+
+        if self.asr_options["torch_compile"]:
+            self.model.generation_config.cache_implementation = "static"
+            self.model.use_compiled = threading.local()
+            self.model.use_compiled.value = True
+            
+            self.model.forward = compile_forward_fn(self.model.forward, mode="reduce-overhead", fullgraph=True)
 
         if self.asr_options["aligner_model_instance"]:
             self.aligner_model = self.asr_options["aligner_model_instance"]
