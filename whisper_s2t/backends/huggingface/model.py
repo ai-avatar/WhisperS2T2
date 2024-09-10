@@ -212,7 +212,20 @@ class WhisperModelHF(WhisperModel):
             word_timings.append(_word_timings)
 
         return word_timings
-    
+
+    def filter_array(self, arr):
+        start_value = 50365 # SOT
+        end_value = 50257 # EOT
+        try:
+            start_index = arr.index(start_value)
+        except ValueError:
+            start_index = 0
+        try:
+            end_index = arr.index(end_value, start_index)
+        except ValueError:
+            end_index = len(arr)-1
+        return arr[start_index:end_index+1]
+
     def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens, generation_kwargs={}):
         if self.compute_type == "float16":
             features = features.to(self.device).half()
@@ -243,7 +256,10 @@ class WhisperModelHF(WhisperModel):
                 scores = generate_result["scores"]
                 print("scores", scores)
                 print("len scores", len(scores))
-                print("len tokens", len([item for sublist in result for item in sublist]))
+                tokens = len([item for sublist in result for item in sublist])
+                filtered_tokens = [self.filter_array(x) for x in result]
+                print("len tokens", tokens)
+                print("len tokens2", len([item for sublist in filtered_tokens for item in sublist]))
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
