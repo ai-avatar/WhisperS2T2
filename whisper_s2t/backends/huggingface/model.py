@@ -244,7 +244,7 @@ class WhisperModelHF(WhisperModel):
         tokens = [[]]
         group_idx = 0
         group_timestamps = [round(seg_metadata[0]['start_time'], 3), round(seg_metadata[0]['end_time'], 3)]
-        group_logprobs = []
+        group_logprobs = [[]]
         for i, segment in enumerate(result):
             logprobs_segment = logprobs[i]
             token_without_logprobs = len(segment) - len(logprobs_segment)
