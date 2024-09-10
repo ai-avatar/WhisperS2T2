@@ -243,6 +243,7 @@ class WhisperModelHF(WhisperModel):
                 scores = generate_result["scores"]
                 print("scores", scores)
                 print("len scores", len(scores))
+                print("len prompt", len(generation_kwargs['prompt_ids']))
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
