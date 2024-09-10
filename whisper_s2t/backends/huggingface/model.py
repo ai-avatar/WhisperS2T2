@@ -237,10 +237,12 @@ class WhisperModelHF(WhisperModel):
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
                 print("result", generate_result["sequences"])
+                print("len results", len(generate_result["sequences"]))
                 result = generate_result["sequences"]
 
                 scores = generate_result["scores"]
                 print("scores", scores)
+                print("len scores", len(scores))
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
