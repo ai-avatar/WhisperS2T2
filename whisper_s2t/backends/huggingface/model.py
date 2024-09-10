@@ -235,6 +235,7 @@ class WhisperModelHF(WhisperModel):
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
             logprobs = self.model.compute_transition_scores(generate_result["sequences"], generate_result["scores"], normalize_logits=True)
+            result = generate_result["sequences"]
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
