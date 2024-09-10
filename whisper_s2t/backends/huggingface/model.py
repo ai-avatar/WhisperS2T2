@@ -224,6 +224,7 @@ class WhisperModelHF(WhisperModel):
                 lang_and_task_pairs[(_p[-3], _p[-2])] = [_i]
 
 
+        print("seg_metadata", seg_metadata)
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
             has_prompt = 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None
@@ -234,6 +235,7 @@ class WhisperModelHF(WhisperModel):
                                                     task=task,
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
+                print("result", result)
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
