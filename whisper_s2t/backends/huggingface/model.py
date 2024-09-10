@@ -232,11 +232,15 @@ class WhisperModelHF(WhisperModel):
             # disable torch compile if prompt or custom logits_processor is present to avoid recompilation
             use_torch_compile = not has_prompt and ('logits_processor' not in generation_kwargs or generation_kwargs['logits_processor'] is None or generation_kwargs['logits_processor'] == [])
             with self.use_torch_compile(use_torch_compile):
-                result = self.model.generate(features[idx_list], 
+                generate_result = self.model.generate(features[idx_list], 
                                                     task=task,
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
-                print("result", result)
+                print("result", generate_result["sequences"])
+                result = generate_result["sequences"]
+
+                scores = generate_result["scores"]
+                print("scores", scores)
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
