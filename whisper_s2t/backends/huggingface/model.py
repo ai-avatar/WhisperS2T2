@@ -85,6 +85,7 @@ class WhisperModelHF(WhisperModel):
             "max_new_tokens": max_text_token_len,
             "num_beams": self.asr_options['beam_size'],
             "return_timestamps": not self.asr_options['without_timestamps'],
+            "output_scores": True,
         }
 
         tokenizer = Tokenizer(self.processor.tokenizer)
