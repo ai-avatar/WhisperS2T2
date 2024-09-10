@@ -64,11 +64,10 @@ class WhisperModelHF(WhisperModel):
                 return forward_fn(*args, **kwargs)
             return wrapped_forward
 
+        self.model.use_compiled = threading.local()
+        self.model.use_compiled.value = True
         if self.asr_options["torch_compile"]:
             self.model.generation_config.cache_implementation = "static"
-            self.model.use_compiled = threading.local()
-            self.model.use_compiled.value = True
-            
             self.model.forward = compile_forward_fn(self.model.forward, mode="reduce-overhead", fullgraph=True)
 
         if self.asr_options["aligner_model_instance"]:
