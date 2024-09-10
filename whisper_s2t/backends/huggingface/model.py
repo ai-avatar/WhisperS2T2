@@ -257,7 +257,7 @@ class WhisperModelHF(WhisperModel):
                 print("scores", scores)
                 print("len scores", len(scores))
                 tokens = len([item for sublist in result for item in sublist])
-                filtered_tokens = [self.filter_array(x) for x in result]
+                filtered_tokens = [self.filter_array(x.tolist()) for x in result]
                 print("len tokens", tokens)
                 print("len tokens2", len([item for sublist in filtered_tokens for item in sublist]))
             # remove prompt tokens from the result
