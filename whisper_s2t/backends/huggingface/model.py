@@ -86,6 +86,7 @@ class WhisperModelHF(WhisperModel):
             "num_beams": self.asr_options['beam_size'],
             "return_timestamps": not self.asr_options['without_timestamps'],
             "output_scores": True,
+            "return_dict_in_generate": True,
         }
 
         tokenizer = Tokenizer(self.processor.tokenizer)
