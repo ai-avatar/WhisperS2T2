@@ -278,7 +278,7 @@ class WhisperModelHF(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                             'start_time': float(group_timestamps[idx*2]),
                             'end_time': float(group_timestamps[idx*2+1]),
-                            'avg_logprob': torch.mean(torch.stack(group_logprobs[idx]))})
+                            'avg_logprob': torch.mean(torch.stack(group_logprobs[idx])).item()})
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]

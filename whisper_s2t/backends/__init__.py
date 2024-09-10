@@ -178,7 +178,6 @@ class WhisperModel(ABC):
                 mels, main_seq_len = self.preprocessor(signals, seq_len)
                 align_mels, align_seq_len = self.align_preprocessor(signals, seq_len) if word_timestamps else (None, None)
                 res = self.generate_segment_batched(mels.to(self.device), prompts, main_seq_len, seg_metadata, align_mels.to(self.device) if align_mels is not None else None, align_seq_len, generation_kwargs)
-                print("res", res)
 
                 for segment in res:
                     start_time = round(segment['word_timestamps'][0]['start'], 3) if word_timestamps and len(segment['word_timestamps']) else segment['start_time']
