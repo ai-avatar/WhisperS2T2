@@ -213,19 +213,6 @@ class WhisperModelHF(WhisperModel):
 
         return word_timings
 
-    def filter_array(self, arr):
-        start_value = 50365 # SOT
-        end_value = 50257 # EOT
-        try:
-            start_index = arr.index(start_value)
-        except ValueError:
-            start_index = 0
-        try:
-            end_index = arr.index(end_value, start_index)
-        except ValueError:
-            end_index = len(arr)-1
-        return arr[start_index:end_index+1]
-
     def generate_segment_batched(self, features, prompts, seq_lens, seg_metadata, align_features, align_seq_lens, generation_kwargs={}):
         if self.compute_type == "float16":
             features = features.to(self.device).half()
@@ -237,8 +224,6 @@ class WhisperModelHF(WhisperModel):
             except:
                 lang_and_task_pairs[(_p[-3], _p[-2])] = [_i]
 
-
-        print("seg_metadata", seg_metadata)
         response = [{} for _ in prompts]
         for (task, lang), idx_list in lang_and_task_pairs.items():
             has_prompt = 'prompt_ids' in generation_kwargs and generation_kwargs['prompt_ids'] is not None
@@ -249,18 +234,7 @@ class WhisperModelHF(WhisperModel):
                                                     task=task,
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
-                print(self.model.compute_transition_scores(generate_result["sequences"], generate_result["scores"], normalize_logits=True))
-                print("result", generate_result["sequences"])
-                print("len results", len(generate_result["sequences"]))
-                result = generate_result["sequences"]
-
-                scores = generate_result["scores"]
-                print("scores", scores)
-                print("len scores", len(scores))
-                tokens = len([item for sublist in result for item in sublist])
-                filtered_tokens = [self.filter_array(x.tolist()) for x in result]
-                print("len tokens", tokens)
-                print("len tokens2", len([item for sublist in filtered_tokens for item in sublist]))
+            logprobs = self.model.compute_transition_scores(generate_result["sequences"], generate_result["scores"], normalize_logits=True)
             # remove prompt tokens from the result
             if has_prompt:
                 result = [segment[len(generation_kwargs['prompt_ids']):] for segment in result]
@@ -269,11 +243,18 @@ class WhisperModelHF(WhisperModel):
         tokens = [[]]
         group_idx = 0
         group_timestamps = [round(seg_metadata[0]['start_time'], 3), round(seg_metadata[0]['end_time'], 3)]
+        group_logprobs = []
         for i, segment in enumerate(result):
-            for token in segment:
+            logprobs_segment = logprobs[i]
+            token_without_logprobs = len(segment) - len(logprobs_segment)
+            for token_i, token in enumerate(segment):
+                if token_i > token_without_logprobs and token < TOKEN_EOT:
+                    group_logprobs[group_idx].append(logprobs_segment[token_i - token_without_logprobs])
+
                 if token > TOKEN_TIMESTAMP_BEGIN and len(tokens[group_idx]):
                     tokens.append([])
                     group_timestamps[group_idx*2+1] = (token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION
+                    group_logprobs.append([])
                     group_idx += 1
 
                     # set fallback timestamps for new group in case of missing timestamps
@@ -295,7 +276,8 @@ class WhisperModelHF(WhisperModel):
         for idx, r in enumerate(text_groups):
             response.append({'text': text_groups[idx].strip(),
                             'start_time': float(group_timestamps[idx*2]),
-                            'end_time': float(group_timestamps[idx*2+1])})
+                            'end_time': float(group_timestamps[idx*2+1]),
+                            'logprobs': group_logprobs[idx]})
 
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
