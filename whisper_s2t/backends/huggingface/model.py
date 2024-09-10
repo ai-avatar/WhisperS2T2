@@ -249,6 +249,7 @@ class WhisperModelHF(WhisperModel):
                                                     task=task,
                                                     language=lang,
                                                     **(self.generate_kwargs | generation_kwargs))
+                print(self.model.compute_transition_scores(generate_result["sequences"], generate_result["scores"]))
                 print("result", generate_result["sequences"])
                 print("len results", len(generate_result["sequences"]))
                 result = generate_result["sequences"]
