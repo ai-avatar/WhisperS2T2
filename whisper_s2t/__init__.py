@@ -30,8 +30,6 @@ def load_model(model_identifier="large-v2",
 
         if 'distil' in model_identifier:
             model_identifier = f"distil-whisper/{model_identifier}"
-        elif 'whisper-large-v3-turbo' in model_identifier:
-            model_identifier = 'ylacombe/whisper-large-v3-turbo'
         else:
             model_identifier = f"openai/whisper-{model_identifier}"
 
