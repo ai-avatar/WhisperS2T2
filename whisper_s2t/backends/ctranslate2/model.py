@@ -244,6 +244,7 @@ class WhisperModelCT2(WhisperModel):
 
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
+                                     return_logits_vocab=True,
                                      **self.generate_kwargs)
         
         print(result)
