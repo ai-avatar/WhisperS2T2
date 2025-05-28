@@ -126,7 +126,7 @@ class WhisperDataLoader:
                  dta_padding=3.0, 
                  without_timestamps=True, 
                  max_speech_len=29.0, 
-                 max_initial_prompt_len=223,
+                 max_initial_prompt_len=218,
                  merge_chunks=True,
                  use_dynamic_time_axis=False):
         

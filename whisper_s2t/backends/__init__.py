@@ -80,7 +80,7 @@ class WhisperModel(ABC):
     def _init_dependables(self):
         # Rescaled Params
         self.dta_padding = int(self.dta_padding*SAMPLE_RATE)
-        self.max_initial_prompt_len = self.max_text_token_len//2 -1
+        self.max_initial_prompt_len = 218
 
         # Load Pre Processor
         self.preprocessor = LogMelSpectogram(n_mels=self.n_mels).to(self.device)
