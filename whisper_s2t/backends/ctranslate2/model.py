@@ -2,7 +2,7 @@ import os
 import tokenizers
 import ctranslate2
 import numpy as np
-
+import torch
 from .tokenizer import Tokenizer
 from .hf_utils import download_model
 
@@ -242,19 +242,23 @@ class WhisperModelCT2(WhisperModel):
         else:
             features = features.contiguous()
 
+        # returns WhisperGenerationResult (https://github.com/OpenNMT/CTranslate2/blob/617405f4b050e994e829d527da6caa0e0030afe7/include/ctranslate2/models/whisper.h#L61-L75)
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
                                      return_logits_vocab=True,
                                      **self.generate_kwargs)
-        
-        print(result)
-        
+
+
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
+            print(segment.logits)
+            logits = torch.from_numpy(segment.logits)
+            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            print("log_probs:", log_probs)
             for token in segment.sequences_ids[0]:
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
