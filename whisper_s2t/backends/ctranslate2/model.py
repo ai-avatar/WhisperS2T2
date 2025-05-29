@@ -266,17 +266,12 @@ class WhisperModelCT2(WhisperModel):
             logits_tensor = torch.stack(logits)
             probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
             log_probs = torch.log(probs)
-
-            print("log_probs:", len(log_probs), log_probs)
             
             # Get log probability for the predicted token
             token_log_probs = []
             for j, token_id in enumerate(segment.sequences_ids[0]):
                 if j < len(log_probs):
                     token_log_probs.append(log_probs[j][token_id].item())
-            
-            print("token_log_probs:", len(token_log_probs), token_log_probs)
-            print("tokens", len(segment.sequences_ids[0]), segment.sequences_ids[0])
 
             for idx, token in enumerate(segment.sequences_ids[0]):
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
