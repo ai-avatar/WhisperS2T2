@@ -256,9 +256,10 @@ class WhisperModelCT2(WhisperModel):
         group_timestamps = []
         for i, segment in enumerate(result):
             # Calculate log probabilities from logits
-            print("logits:", result.logits)
-            print("logits type:", type(result.logits[0][0]))
-            logits = [torch.tensor(logit.numpy()) for logit in result.logits]
+            print("logits:", segment.logits)
+            print("logits type:", type(segment.logits[0][0]))
+            print("logits shape:", segment.logits.numpy())
+            logits = [torch.tensor(logit.numpy()) for logit in segment.logits]
             probs = torch.nn.functional.softmax(logits, dim=-1)
             log_probs = torch.log(probs)
             print("log_probs:", log_probs)
