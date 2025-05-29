@@ -261,7 +261,8 @@ class WhisperModelCT2(WhisperModel):
                 print("logit_array:", logit_array)
                 for logit in logit_array:
                     print("logit:", logit)
-                    logits.append([np.array(logit_item) for logit_item in logit])
+                    logits.append(np.array(logit))
+                    print("new logit", np.array(logit))
             print("logits:", logits)
             probs = torch.nn.functional.softmax(logits, dim=-1)
             log_probs = torch.log(probs)
