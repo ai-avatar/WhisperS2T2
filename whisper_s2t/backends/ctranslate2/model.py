@@ -254,6 +254,7 @@ class WhisperModelCT2(WhisperModel):
         group = 0
         groups_per_segment = []
         group_timestamps = []
+        group_logprobs = [[]]
         for i, segment in enumerate(result):
             # Calculate log probabilities from logits
             logits = []
@@ -265,6 +266,8 @@ class WhisperModelCT2(WhisperModel):
             logits_tensor = torch.stack(logits)
             probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
             log_probs = torch.log(probs)
+
+            print("log_probs:", len(log_probs), log_probs)
             
             # Get log probability for the predicted token
             token_log_probs = []
@@ -275,14 +278,16 @@ class WhisperModelCT2(WhisperModel):
             print("token_log_probs:", len(token_log_probs), token_log_probs)
             print("tokens", len(segment.sequences_ids[0]), segment.sequences_ids[0])
 
-            for token in segment.sequences_ids[0]:
+            for idx, token in enumerate(segment.sequences_ids[0]):
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
+                    group_logprobs.append([])
                     groups_per_segment.append(len(tokens[group]))
                     group += 1
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
-
+                    group_logprobs[group].append(token_log_probs[idx])
+                
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
             
@@ -307,7 +312,7 @@ class WhisperModelCT2(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                              'start_time': float(group_timestamps[idx*2]),
                              'end_time': float(group_timestamps[idx*2+1]),
-                             'avg_logprob': token_log_probs[idx]})
+                             'avg_logprob': torch.mean(torch.stack(group_logprobs[idx])).item()})
 
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
