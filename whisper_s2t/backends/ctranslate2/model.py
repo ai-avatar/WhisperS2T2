@@ -312,7 +312,7 @@ class WhisperModelCT2(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                              'start_time': float(group_timestamps[idx*2]),
                              'end_time': float(group_timestamps[idx*2+1]),
-                             'avg_logprob': torch.mean(torch.stack(group_logprobs[idx])).item()})
+                             'avg_logprob': torch.tensor(group_logprobs[idx]).mean().item()})
 
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
