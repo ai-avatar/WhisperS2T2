@@ -258,8 +258,10 @@ class WhisperModelCT2(WhisperModel):
             # Calculate log probabilities from logits
             logits = []
             for logit_array in segment.logits:
-                logit_tensor = [np.array(logit) for logit in logit_array]
-                logits.append(logit_tensor)
+                print("logit_array:", logit_array)
+                for logit in logit_array:
+                    print("logit:", logit)
+                    logits.append([np.array(logit_item) for logit_item in logit])
             print("logits:", logits)
             probs = torch.nn.functional.softmax(logits, dim=-1)
             log_probs = torch.log(probs)
