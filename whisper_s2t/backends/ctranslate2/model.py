@@ -255,10 +255,19 @@ class WhisperModelCT2(WhisperModel):
         groups_per_segment = []
         group_timestamps = []
         for i, segment in enumerate(result):
-            print(segment.logits)
-            logits = torch.from_numpy(segment.logits)
-            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            # Calculate log probabilities from logits
+            logits = torch.tensor(segment.logits)
+            probs = torch.nn.functional.softmax(logits, dim=-1)
+            log_probs = torch.log(probs)
             print("log_probs:", log_probs)
+            
+            # Get log probability for the predicted token
+            token_log_probs = []
+            for j, token_id in enumerate(segment.sequences_ids[0]):
+                if j < len(log_probs):
+                    token_log_probs.append(log_probs[j][token_id].item())
+            print("token_log_probs:", token_log_probs)
+            
             for token in segment.sequences_ids[0]:
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
