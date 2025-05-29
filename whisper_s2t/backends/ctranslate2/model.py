@@ -2,7 +2,7 @@ import os
 import tokenizers
 import ctranslate2
 import numpy as np
-
+import torch
 from .tokenizer import Tokenizer
 from .hf_utils import download_model
 
@@ -242,24 +242,47 @@ class WhisperModelCT2(WhisperModel):
         else:
             features = features.contiguous()
 
+        # returns WhisperGenerationResult (https://github.com/OpenNMT/CTranslate2/blob/617405f4b050e994e829d527da6caa0e0030afe7/include/ctranslate2/models/whisper.h#L61-L75)
         result = self.model.generate(ctranslate2.StorageView.from_array(features),
                                      prompts,
+                                     return_logits_vocab=True,
                                      **self.generate_kwargs)
-        
+
+
         # group tokens by utterance (separated by timestamp tokens)
         tokens = [[]]
         group = 0
         groups_per_segment = []
         group_timestamps = []
+        group_logprobs = [[]]
         for i, segment in enumerate(result):
-            for token in segment.sequences_ids[0]:
+            # Calculate log probabilities from logits
+            logits = []
+            for logit_array in segment.logits:
+                for logit in logit_array:
+                    logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
+            
+            # Stack logits into a single tensor before applying softmax
+            logits_tensor = torch.stack(logits)
+            probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
+            log_probs = torch.log(probs)
+            
+            # Get log probability for the predicted token
+            token_log_probs = []
+            for j, token_id in enumerate(segment.sequences_ids[0]):
+                if j < len(log_probs):
+                    token_log_probs.append(log_probs[j][token_id].item())
+
+            for idx, token in enumerate(segment.sequences_ids[0]):
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
+                    group_logprobs.append([])
                     groups_per_segment.append(len(tokens[group]))
                     group += 1
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
-
+                    group_logprobs[group].append(token_log_probs[idx])
+                
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
             
@@ -284,7 +307,7 @@ class WhisperModelCT2(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                              'start_time': float(group_timestamps[idx*2]),
                              'end_time': float(group_timestamps[idx*2+1]),
-                             'avg_logprob': 0}) # TODO
+                             'avg_logprob': torch.tensor(group_logprobs[idx]).mean().item()})
 
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
