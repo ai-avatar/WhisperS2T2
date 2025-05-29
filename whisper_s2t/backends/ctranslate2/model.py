@@ -260,8 +260,10 @@ class WhisperModelCT2(WhisperModel):
             for logit_array in segment.logits:
                 for logit in logit_array:
                     logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
-            print("logits:", logits)
-            probs = torch.nn.functional.softmax(logits, dim=-1)
+            
+            # Stack logits into a single tensor before applying softmax
+            logits_tensor = torch.stack(logits)
+            probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
             log_probs = torch.log(probs)
             print("log_probs:", log_probs)
             
