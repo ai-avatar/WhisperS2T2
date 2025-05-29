@@ -265,15 +265,16 @@ class WhisperModelCT2(WhisperModel):
             logits_tensor = torch.stack(logits)
             probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
             log_probs = torch.log(probs)
-            print("log_probs:", log_probs)
             
             # Get log probability for the predicted token
             token_log_probs = []
             for j, token_id in enumerate(segment.sequences_ids[0]):
                 if j < len(log_probs):
                     token_log_probs.append(log_probs[j][token_id].item())
-            print("token_log_probs:", token_log_probs)
             
+            print("token_log_probs:", len(token_log_probs), token_log_probs)
+            print("tokens", len(segment.sequences_ids[0]), segment.sequences_ids[0])
+
             for token in segment.sequences_ids[0]:
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
@@ -306,7 +307,7 @@ class WhisperModelCT2(WhisperModel):
             response.append({'text': text_groups[idx].strip(),
                              'start_time': float(group_timestamps[idx*2]),
                              'end_time': float(group_timestamps[idx*2+1]),
-                             'avg_logprob': 0}) # TODO
+                             'avg_logprob': token_log_probs[idx]})
 
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
