@@ -1,10 +1,14 @@
 import os
 import torch
 import numpy as np
+import time
+import logging
 
 from . import VADBaseClass
 from .. import BASE_PATH
 
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class FrameVAD(VADBaseClass):
     def __init__(self, 
@@ -21,6 +25,8 @@ class FrameVAD(VADBaseClass):
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             
         self.device = device
+        self.max_retries = 1
+        self.retry_delay = 0.1
         
         if self.device == 'cpu':
             # This is a JIT Scripted model of Nvidia's NeMo Framewise Marblenet Model: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/vad_multilingual_frame_marblenet
@@ -75,28 +81,41 @@ class FrameVAD(VADBaseClass):
     @torch.no_grad()
     def forward(self, input_signal, input_signal_length):
         
-        all_logits = []
-        for s_idx in range(0, len(input_signal), self.batch_size):
-            input_signal_pt = torch.stack([torch.tensor(_, device=self.device) for _ in input_signal[s_idx:s_idx+self.batch_size]])
-            input_signal_length_pt = torch.tensor(input_signal_length[s_idx:s_idx+self.batch_size], device=self.device)
-            
-            x, x_len = self.vad_pp(input_signal_pt, input_signal_length_pt)
-            logits = self.vad_model(x, x_len)
+        for attempt in range(self.max_retries):
+            try:
+                all_logits = []
+                for s_idx in range(0, len(input_signal), self.batch_size):
+                    input_signal_pt = torch.stack([torch.tensor(_, device=self.device) for _ in input_signal[s_idx:s_idx+self.batch_size]])
+                    input_signal_length_pt = torch.tensor(input_signal_length[s_idx:s_idx+self.batch_size], device=self.device)
+                    
+                    x, x_len = self.vad_pp(input_signal_pt, input_signal_length_pt)
+                    logits = self.vad_model(x, x_len)
 
-            for _logits, _len in zip(logits, input_signal_length_pt):
-                all_logits.append(_logits[:int(_len/self.signal_to_logit_len)])
-        
-        if len(all_logits) > 1 and self.margin_logit_len > 0:
-            all_logits[0] = all_logits[0][:-self.margin_logit_len]
-            all_logits[-1] = all_logits[-1][self.margin_logit_len:]
+                    for _logits, _len in zip(logits, input_signal_length_pt):
+                        all_logits.append(_logits[:int(_len/self.signal_to_logit_len)])
+                
+                if len(all_logits) > 1 and self.margin_logit_len > 0:
+                    all_logits[0] = all_logits[0][:-self.margin_logit_len]
+                    all_logits[-1] = all_logits[-1][self.margin_logit_len:]
 
-            for i in range(1, len(all_logits)-1):
-                all_logits[i] = all_logits[i][self.margin_logit_len:-self.margin_logit_len]
+                    for i in range(1, len(all_logits)-1):
+                        all_logits[i] = all_logits[i][self.margin_logit_len:-self.margin_logit_len]
 
-        all_logits = torch.concatenate(all_logits)
-        all_logits = torch.softmax(all_logits, dim=-1)
-        
-        return all_logits[:, 1].detach().cpu().numpy()
+                all_logits = torch.concatenate(all_logits)
+                all_logits = torch.softmax(all_logits, dim=-1)
+                
+                return all_logits[:, 1].detach().cpu().numpy()
+                
+            except RuntimeError as e:
+                if "TorchScript interpreter" in str(e) and attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"TorchScript error in VAD forward pass (attempt {attempt + 1}/{self.max_retries}). Retrying in {delay:.2f}s... Error: {str(e)}")
+                    time.sleep(delay)
+                    
+                    continue
+                else:
+                    logger.error(f"VAD forward pass failed after {self.max_retries} attempts. Final error: {str(e)}")
+                    raise
     
     def __call__(self, audio_signal):
         audio_duration = len(audio_signal)/self.sampling_rate
