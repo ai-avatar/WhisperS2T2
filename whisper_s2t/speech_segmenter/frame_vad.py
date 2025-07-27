@@ -25,7 +25,7 @@ class FrameVAD(VADBaseClass):
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             
         self.device = device
-        self.max_retries = 1
+        self.max_retries = 2
         self.retry_delay = 0.1
         
         if self.device == 'cpu':
