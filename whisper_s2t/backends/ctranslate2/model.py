@@ -213,6 +213,7 @@ class WhisperModelCT2(WhisperModel):
                 align_words = []
                 align_word_tokens = []
 
+            print("align_words:", align_words)
             _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
                                                     token_alignments[_idx].text_token_probs, 
                                                     align_words,
