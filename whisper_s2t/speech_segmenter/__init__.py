@@ -31,8 +31,15 @@ class SpeechSegmenter:
                  sampling_rate=16000):
         
         if vad_model is None:
-            from .frame_vad import FrameVAD
-            vad_model = FrameVAD(device=device)
+            # Prefer TEN VAD by default (low-latency frame-level VAD).
+            # Ref: https://huggingface.co/TEN-framework/ten-vad
+            try:
+                from .ten_vad import TenVAD
+                vad_model = TenVAD(device=device, sampling_rate=sampling_rate)
+            except Exception:
+                # Backwards-compatible fallback
+                from .frame_vad import FrameVAD
+                vad_model = FrameVAD(device=device)
         
         self.vad_model = vad_model
         

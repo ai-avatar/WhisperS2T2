@@ -10,3 +10,4 @@ accelerate
 transformers
 openai-whisper
 nvidia-ml-py
+ten-vad @ git+https://github.com/TEN-framework/ten-vad.git
