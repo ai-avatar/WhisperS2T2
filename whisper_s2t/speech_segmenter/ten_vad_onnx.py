@@ -237,7 +237,12 @@ class TenVADOnnx(VADBaseClass):
             if meta.name == self.audio_input_name:
                 feed[meta.name] = self._prepare_audio_input(frame_i16)
             else:
-                feed[meta.name] = self._state_inputs.get(meta.name) or self._default_inputs.get(meta.name) or self._make_default_input(meta)
+                v = self._state_inputs.get(meta.name, None)
+                if v is None:
+                    v = self._default_inputs.get(meta.name, None)
+                if v is None:
+                    v = self._make_default_input(meta)
+                feed[meta.name] = v
 
         out_names = None  # all outputs
         outs = self._session.run(out_names, feed)
