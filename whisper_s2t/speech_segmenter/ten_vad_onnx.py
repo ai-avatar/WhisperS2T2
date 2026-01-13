@@ -109,6 +109,14 @@ class TenVADOnnx(VADBaseClass):
                 self._audio_input_meta = i
                 break
 
+        # Infer hop_size from the selected audio input shape if the model specifies a fixed length.
+        inferred = self._infer_hop_size_from_audio_meta()
+        if inferred is not None and inferred > 0 and inferred != self.hop_size:
+            # Auto-adjust to match the ONNX model signature (prevents shape errors like:
+            # "Got: 256 Expected: 64")
+            self.hop_size = int(inferred)
+            self._hop_duration = self.hop_size / float(self.sampling_rate)
+
         # Initialize non-audio inputs with defaults (zeros, or derived scalars such as sr/threshold).
         self._state_inputs = {}
         self._default_inputs = {}
@@ -173,6 +181,32 @@ class TenVADOnnx(VADBaseClass):
 
         # Default: zeros
         return np.zeros(np_shape, dtype=dtype)
+
+    def _infer_hop_size_from_audio_meta(self) -> Optional[int]:
+        """
+        Best-effort inference of expected frame length from the chosen audio input.
+        Common exported streaming audio models use shapes like:
+          (N,) or (1, N) or (1, 1, N)
+        """
+        meta = self._audio_input_meta
+        if meta is None:
+            return None
+        shape = meta.shape or []
+
+        # Collect concrete dims > 1 (ignore batch/channel dims of 1)
+        dims = [d for d in shape if isinstance(d, int) and d > 1]
+        if not dims:
+            return None
+
+        common = {64, 80, 128, 160, 192, 200, 240, 256, 320, 400, 512, 640, 800, 1024}
+        for d in dims:
+            if d in common:
+                return int(d)
+
+        sane = [d for d in dims if d <= 4096]
+        if sane:
+            return int(max(sane))
+        return int(dims[0])
 
     def _prepare_audio_input(self, frame_i16: np.ndarray) -> np.ndarray:
         """
