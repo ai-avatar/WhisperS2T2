@@ -23,6 +23,7 @@ class TenVADOnnx(VADBaseClass):
         device: Optional[str] = None,
         model_path: Optional[str] = None,
         hop_size: int = 256,
+        threshold: float = 0.5,
         sampling_rate: int = 16000,
         providers: Optional[list] = None,
         audio_input_name: Optional[str] = None,
@@ -31,6 +32,7 @@ class TenVADOnnx(VADBaseClass):
         super().__init__(sampling_rate=sampling_rate)
         self.device = device
         self.hop_size = int(hop_size)
+        self.threshold = float(threshold)
         self.audio_input_name = audio_input_name
         self.prob_output_name = prob_output_name
 
@@ -48,6 +50,9 @@ class TenVADOnnx(VADBaseClass):
         self._providers = providers
         self._session = None
         self._state_inputs: Dict[str, np.ndarray] = {}
+        self._default_inputs: Dict[str, np.ndarray] = {}
+        self._input_metas = []
+        self._audio_input_meta = None
         self._init_session()
 
         self._hop_duration = self.hop_size / float(self.sampling_rate)
@@ -73,7 +78,7 @@ class TenVADOnnx(VADBaseClass):
 
         # Resolve audio input name if not provided.
         inputs = self._session.get_inputs()
-        self._audio_input_meta = None
+        self._input_metas = inputs
         if self.audio_input_name is None:
             # Heuristic: pick the first tensor input that looks like audio (int16/float, shape includes hop_size or dynamic)
             for i in inputs:
@@ -96,21 +101,15 @@ class TenVADOnnx(VADBaseClass):
                 self._audio_input_meta = i
                 break
 
-        # Initialize state inputs (anything other than audio) to zeros.
+        # Initialize non-audio inputs with defaults (zeros, or derived scalars such as sr/threshold).
         self._state_inputs = {}
+        self._default_inputs = {}
         for i in inputs:
             if i.name == self.audio_input_name:
                 continue
-            shape = i.shape or []
-            if any((d is None) or (d == "None") or (d == "?") for d in shape):
-                # can't safely infer; will be provided by model outputs (if any) or skipped
-                continue
-            try:
-                np_shape = tuple(int(d) for d in shape)
-            except Exception:
-                continue
-            # Default float32 zeros
-            self._state_inputs[i.name] = np.zeros(np_shape, dtype=np.float32)
+            self._default_inputs[i.name] = self._make_default_input(i)
+            # Treat all non-audio tensors as "state" that can be updated if model outputs provide same-named tensors.
+            self._state_inputs[i.name] = self._default_inputs[i.name]
 
         # Resolve prob output name if not provided.
         outputs = self._session.get_outputs()
@@ -122,6 +121,50 @@ class TenVADOnnx(VADBaseClass):
                     break
             if self.prob_output_name is None and len(outputs):
                 self.prob_output_name = outputs[0].name
+
+    def _make_default_input(self, meta) -> np.ndarray:
+        """
+        Create a best-effort default value for a non-audio ONNX input.
+        This prevents ORT _validate_input() errors on models that require extra inputs
+        (e.g., recurrent state, cache, config scalars).
+        """
+        name = (meta.name or "").lower()
+        t = (meta.type or "").lower()
+        shape = meta.shape or []
+
+        # Resolve dynamic dims to 1 (best-effort). If rank is unknown, treat as scalar.
+        if len(shape) == 0:
+            np_shape = ()
+        else:
+            dims = []
+            for d in shape:
+                if isinstance(d, int) and d > 0:
+                    dims.append(d)
+                else:
+                    dims.append(1)
+            np_shape = tuple(dims)
+
+        # Choose dtype based on tensor type
+        if "int64" in t:
+            dtype = np.int64
+        elif "int32" in t:
+            dtype = np.int32
+        elif "int16" in t:
+            dtype = np.int16
+        elif "float16" in t:
+            dtype = np.float16
+        else:
+            dtype = np.float32
+
+        # Heuristics for common scalar config inputs
+        if np_shape == () or np_shape == (1,):
+            if any(k in name for k in ["sr", "sample_rate", "sampling_rate", "rate"]):
+                return np.array(self.sampling_rate, dtype=dtype).reshape(np_shape)
+            if any(k in name for k in ["thresh", "threshold"]):
+                return np.array(self.threshold, dtype=np.float32).astype(dtype).reshape(np_shape)
+
+        # Default: zeros
+        return np.zeros(np_shape, dtype=dtype)
 
     def _prepare_audio_input(self, frame_i16: np.ndarray) -> np.ndarray:
         """
@@ -169,12 +212,13 @@ class TenVADOnnx(VADBaseClass):
     def update_params(self, params={}):
         needs_reinit = False
         for key, value in params.items():
-            if key in {"device", "model_path", "hop_size", "sampling_rate", "providers", "audio_input_name", "prob_output_name"}:
+            if key in {"device", "model_path", "hop_size", "threshold", "sampling_rate", "providers", "audio_input_name", "prob_output_name"}:
                 needs_reinit = True
             setattr(self, key, value)
 
         self.hop_size = int(self.hop_size)
         self.sampling_rate = int(self.sampling_rate)
+        self.threshold = float(self.threshold)
 
         if needs_reinit:
             self._init_session()
@@ -187,13 +231,13 @@ class TenVADOnnx(VADBaseClass):
 
     def _run_frame(self, frame_i16: np.ndarray) -> float:
         assert self._session is not None
+        # Always feed ALL required inputs to avoid ORT _validate_input errors.
         feed: Dict[str, np.ndarray] = {}
-
-        audio_in = self._prepare_audio_input(frame_i16)
-        feed[self.audio_input_name] = audio_in
-
-        # Add state inputs if any
-        feed.update(self._state_inputs)
+        for meta in self._input_metas:
+            if meta.name == self.audio_input_name:
+                feed[meta.name] = self._prepare_audio_input(frame_i16)
+            else:
+                feed[meta.name] = self._state_inputs.get(meta.name) or self._default_inputs.get(meta.name) or self._make_default_input(meta)
 
         out_names = None  # all outputs
         outs = self._session.run(out_names, feed)
