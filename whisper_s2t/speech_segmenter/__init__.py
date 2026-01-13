@@ -32,10 +32,16 @@ class SpeechSegmenter:
         
         if vad_model is None:
             # Prefer TEN VAD by default (low-latency frame-level VAD).
+            # If running on CUDA and ONNX Runtime is available, prefer the ONNX variant.
             # Ref: https://huggingface.co/TEN-framework/ten-vad
             try:
-                from .ten_vad import TenVAD
-                vad_model = TenVAD(device=device, sampling_rate=sampling_rate)
+                dev = (device or "").lower()
+                if "cuda" in dev or dev.startswith("gpu"):
+                    from .ten_vad_onnx import TenVADOnnx
+                    vad_model = TenVADOnnx(device=device, sampling_rate=sampling_rate)
+                else:
+                    from .ten_vad import TenVAD
+                    vad_model = TenVAD(device=device, sampling_rate=sampling_rate)
             except Exception:
                 # Backwards-compatible fallback
                 from .frame_vad import FrameVAD
