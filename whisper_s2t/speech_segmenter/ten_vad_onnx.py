@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 
@@ -80,20 +80,28 @@ class TenVADOnnx(VADBaseClass):
         inputs = self._session.get_inputs()
         self._input_metas = inputs
         if self.audio_input_name is None:
-            # Heuristic: pick the first tensor input that looks like audio (int16/float, shape includes hop_size or dynamic)
-            for i in inputs:
-                t = (i.type or "").lower()
-                shape = i.shape or []
-                if "tensor" not in t:
-                    continue
-                if ("int16" in t) or ("float" in t) or ("int32" in t):
-                    if any((d == self.hop_size) for d in shape if isinstance(d, int)) or any(
-                        (d is None) or (d == "None") or (d == "?" or d == -1) for d in shape
-                    ):
-                        self.audio_input_name = i.name
-                        break
+            # Heuristic: pick the input that most likely represents a hop-sized audio frame.
+            # We strongly prefer a tensor input whose shape explicitly includes hop_size (256),
+            # otherwise fall back to dynamic 1D/2D tensors.
+            def score(inp) -> Tuple[int, int, int]:
+                t = (inp.type or "").lower()
+                shape = inp.shape or []
+                rank = len(shape)
+                hop_match = 1 if any(isinstance(d, int) and d == self.hop_size for d in shape) else 0
+                dtype_match = 1 if (("int16" in t) or ("float" in t) or ("int32" in t)) else 0
+                # Prefer lower-rank inputs for raw audio
+                rank_score = 0
+                if rank == 1:
+                    rank_score = 2
+                elif rank == 2:
+                    rank_score = 1
+                return (hop_match, dtype_match, rank_score)
 
-            if self.audio_input_name is None and len(inputs):
+            candidates = [i for i in inputs if "tensor" in (i.type or "").lower()]
+            if candidates:
+                candidates.sort(key=score, reverse=True)
+                self.audio_input_name = candidates[0].name
+            elif len(inputs):
                 self.audio_input_name = inputs[0].name
 
         for i in inputs:
