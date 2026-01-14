@@ -71,9 +71,17 @@ class FrameV2VAD(VADBaseClass):
                 "FrameV2VAD requires NVIDIA NeMo. Install with e.g. `pip install -U nemo_toolkit['asr']`."
             ) from e
 
-        self.vad_model = nemo_asr.models.EncDecFrameClassificationModel.from_pretrained(
-            model_name=self.model_name, **self.nemo_kwargs
-        )
+        # NeMo versions differ in checkpoint strictness; some expect extra keys
+        # (e.g. "loss.weight") that aren't always present in published artifacts.
+        try:
+            self.vad_model = nemo_asr.models.EncDecFrameClassificationModel.from_pretrained(
+                model_name=self.model_name, strict=False, **self.nemo_kwargs
+            )
+        except TypeError:
+            # Older NeMo doesn't accept strict=...
+            self.vad_model = nemo_asr.models.EncDecFrameClassificationModel.from_pretrained(
+                model_name=self.model_name, **self.nemo_kwargs
+            )
         self.vad_model = self.vad_model.to(self.device)
         self.vad_model.eval()
 
