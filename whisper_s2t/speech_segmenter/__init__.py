@@ -121,7 +121,11 @@ class SpeechSegmenter:
         else:
             audio_duration = len(audio_signal)/self.sampling_rate
             
+        import time
+        start_time = time.time()
         speech_probs = self.vad_model(audio_signal)
+        end_time = time.time()
+        print(f"VAD time: {end_time - start_time} seconds")
         start_ends = self.get_speech_segments(speech_probs)
         
         if len(start_ends) == 0:
