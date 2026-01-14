@@ -34,22 +34,34 @@ class SpeechSegmenter:
                  sampling_rate=16000):
         
         if vad_model is None:
-            # Default VAD: Silero (fast + accurate). Falls back to FrameVAD if Silero isn't installed.
+            # Default VAD:
+            # - FrameV2VAD (NeMo Frame-VAD Multilingual MarbleNet v2.0) when NeMo is available
+            # - fallback to bundled TorchScript FrameVAD
+            # - fallback to SileroVAD
             try:
-                from .silero_vad import SileroVAD
-                vad_model = SileroVAD(
+                from .frame_v2_vad import FrameV2VAD
+                vad_model = FrameV2VAD(
                     device=device,
                     sampling_rate=sampling_rate,
                     frame_size=frame_size,
                 )
             except Exception as e:
-                logger.warning("Failed to initialize SileroVAD; falling back to FrameVAD. Error: %s", e)
-                from .frame_vad import FrameVAD
-                vad_model = FrameVAD(
-                    device=device,
-                    sampling_rate=sampling_rate,
-                    frame_size=frame_size,
-                )
+                logger.warning("Failed to initialize FrameV2VAD; falling back. Error: %s", e)
+                try:
+                    from .frame_vad import FrameVAD
+                    vad_model = FrameVAD(
+                        device=device,
+                        sampling_rate=sampling_rate,
+                        frame_size=frame_size,
+                    )
+                except Exception as e2:
+                    logger.warning("Failed to initialize FrameVAD; falling back to SileroVAD. Error: %s", e2)
+                    from .silero_vad import SileroVAD
+                    vad_model = SileroVAD(
+                        device=device,
+                        sampling_rate=sampling_rate,
+                        frame_size=frame_size,
+                    )
         
         self.vad_model = vad_model
         
