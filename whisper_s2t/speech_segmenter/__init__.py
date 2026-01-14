@@ -39,8 +39,8 @@ class SpeechSegmenter:
             # - fallback to bundled TorchScript FrameVAD
             # - fallback to SileroVAD
             try:
-                from .frame_v2_vad import FrameV2VAD
-                vad_model = FrameV2VAD(
+                from .frame_vad import FrameVAD
+                vad_model = FrameVAD(
                     device=device,
                     sampling_rate=sampling_rate,
                     frame_size=frame_size,
