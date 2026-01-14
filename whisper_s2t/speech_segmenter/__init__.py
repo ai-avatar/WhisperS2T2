@@ -28,8 +28,8 @@ class SpeechSegmenter:
                  max_seg_len=29.0,
                  max_silent_region=0.6,
                  padding=0.2,
-                 eos_thresh=0.3,
-                 bos_thresh=0.3,
+                 eos_thresh=0.4,
+                 bos_thresh=0.4,
                  cut_factor=2,
                  sampling_rate=16000):
         
