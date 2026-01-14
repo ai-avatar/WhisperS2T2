@@ -23,6 +23,7 @@ class SileroVAD(VADBaseClass):
         self,
         device: Optional[str] = None,
         sampling_rate: int = 16000,
+        vad_sampling_rate: Optional[int] = 8000,
         frame_size: float = 0.02,
         vad_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -34,6 +35,9 @@ class SileroVAD(VADBaseClass):
         self.device = device
         self.frame_size = float(frame_size)
         self.vad_kwargs: Dict[str, Any] = dict(vad_kwargs or {})
+        # Optional speed knob: run Silero VAD at 8kHz while keeping the main pipeline at 16kHz.
+        # Segments are returned in seconds, so downstream alignment stays consistent.
+        self.vad_sampling_rate = int(vad_sampling_rate or sampling_rate)
 
         # Lazy-import (keeps package usable without silero installed until needed)
         from silero_vad import get_speech_timestamps, load_silero_vad
@@ -63,37 +67,20 @@ class SileroVAD(VADBaseClass):
     def _call_silero(self, wav_tensor: torch.Tensor) -> List[Dict[str, Any]]:
         """
         Call Silero get_speech_timestamps with compatibility shims across versions.
-        We always try to get seconds out; if not supported, we convert from samples.
         """
-        # Newer API: supports return_seconds=True
+        # Some Silero variants keep an internal state; reset per file for correctness.
         try:
-            return self._get_speech_timestamps(
-                wav_tensor,
-                self.model,
-                sampling_rate=self.sampling_rate,
-                return_seconds=True,
-                **self.vad_kwargs,
-            )
-        except TypeError:
+            self.model.reset_states()
+        except Exception:
             pass
 
-        # Older API: return samples (dicts with 'start'/'end' in samples)
-        ts = self._get_speech_timestamps(
+        return self._get_speech_timestamps(
             wav_tensor,
             self.model,
-            sampling_rate=self.sampling_rate,
+            sampling_rate=self.vad_sampling_rate,
+            return_seconds=True,
             **self.vad_kwargs,
         )
-        # Convert samples -> seconds
-        out: List[Dict[str, Any]] = []
-        for seg in ts:
-            out.append(
-                {
-                    "start": float(seg["start"]) / float(self.sampling_rate),
-                    "end": float(seg["end"]) / float(self.sampling_rate),
-                }
-            )
-        return out
 
     def _segments_to_frame_probs(
         self, segments_s: List[Tuple[float, float]], audio_duration_s: float
@@ -118,19 +105,31 @@ class SileroVAD(VADBaseClass):
             end_idx = max(0, min(n_frames - 1, end_idx))
             probs[start_idx : end_idx + 1] = 1.0
 
-        vad_times = np.zeros((n_frames, 3), dtype=np.float32)
-        for i in range(n_frames):
-            s_time = i * self.frame_size
-            e_time = min(audio_duration_s, (i + 1) * self.frame_size)
-            vad_times[i] = (probs[i], s_time, e_time)
+        # Vectorize frame grid construction (big win for long audio vs Python loop)
+        start_times = (np.arange(n_frames, dtype=np.float32) * np.float32(self.frame_size)).astype(
+            np.float32, copy=False
+        )
+        end_times = np.minimum(start_times + np.float32(self.frame_size), np.float32(audio_duration_s)).astype(
+            np.float32, copy=False
+        )
+        return np.stack([probs, start_times, end_times], axis=1).astype(np.float32, copy=False)
 
-        return vad_times
-
-    @torch.no_grad()
+    @torch.inference_mode()
     def __call__(self, audio_signal: np.ndarray, batch_size: int = 4):  # noqa: ARG002
         audio_duration_s = len(audio_signal) / float(self.sampling_rate)
 
-        wav = torch.from_numpy(audio_signal.astype(np.float32, copy=False))
+        audio_vad = audio_signal
+        if self.vad_sampling_rate != self.sampling_rate:
+            if self.sampling_rate == 16000 and self.vad_sampling_rate == 8000:
+                # Fast decimation; good enough for VAD in practice and ~2x fewer model steps.
+                audio_vad = audio_signal[::2]
+            else:
+                raise ValueError(
+                    f"Unsupported vad_sampling_rate={self.vad_sampling_rate} for input sampling_rate={self.sampling_rate}. "
+                    "Supported: 16000->8000."
+                )
+
+        wav = torch.from_numpy(audio_vad.astype(np.float32, copy=False))
         if self.device != "cpu":
             try:
                 wav = wav.to(self.device)
