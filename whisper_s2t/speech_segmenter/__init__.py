@@ -155,6 +155,8 @@ class SpeechSegmenter:
         speech_probs = self.vad_model(audio_signal)
         end_time = time.time()
         print(f"VAD time: {end_time - start_time} seconds")
+        print("speech_probs", speech_probs)
+        print("max speech_prob", np.max(speech_probs[:, 0]))
         start_ends = self.get_speech_segments(speech_probs)
         
         if len(start_ends) == 0:
