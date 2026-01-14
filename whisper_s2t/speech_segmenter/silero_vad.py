@@ -129,14 +129,24 @@ class SileroVAD(VADBaseClass):
                     "Supported: 16000->8000."
                 )
 
-        wav = torch.from_numpy(audio_vad.astype(np.float32, copy=False))
+        # torch.from_numpy warns on non-writable NumPy views (common with slicing like [::2]).
+        # We only copy if needed; otherwise we keep it zero-copy.
+        audio_vad_f32 = np.asarray(audio_vad, dtype=np.float32, order="C")
+        if not audio_vad_f32.flags.writeable:
+            audio_vad_f32 = audio_vad_f32.copy()
+
+        wav = torch.from_numpy(audio_vad_f32)
         if self.device != "cpu":
             try:
                 wav = wav.to(self.device)
             except Exception:
                 logger.debug("SileroVAD: could not move audio tensor to device=%s", self.device)
 
+        import time
+        start_time = time.time()
         segments = self._call_silero(wav)
+        end_time = time.time()
+        print(f"SileroVAD time: {end_time - start_time} seconds")
         segments_s: List[Tuple[float, float]] = [(float(s["start"]), float(s["end"])) for s in segments]
 
         return self._segments_to_frame_probs(segments_s, audio_duration_s)
