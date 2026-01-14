@@ -1,7 +1,10 @@
 import numpy as np
+import logging
 from abc import ABC, abstractmethod
 
 from ..audio import load_audio
+
+logger = logging.getLogger(__name__)
 
 
 class VADBaseClass(ABC):
@@ -31,8 +34,22 @@ class SpeechSegmenter:
                  sampling_rate=16000):
         
         if vad_model is None:
-            from .frame_vad import FrameVAD
-            vad_model = FrameVAD(device=device)
+            # Default VAD: Silero (fast + accurate). Falls back to FrameVAD if Silero isn't installed.
+            try:
+                from .silero_vad import SileroVAD
+                vad_model = SileroVAD(
+                    device=device,
+                    sampling_rate=sampling_rate,
+                    frame_size=frame_size,
+                )
+            except Exception as e:
+                logger.warning("Failed to initialize SileroVAD; falling back to FrameVAD. Error: %s", e)
+                from .frame_vad import FrameVAD
+                vad_model = FrameVAD(
+                    device=device,
+                    sampling_rate=sampling_rate,
+                    frame_size=frame_size,
+                )
         
         self.vad_model = vad_model
         

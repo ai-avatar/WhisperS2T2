@@ -10,3 +10,4 @@ accelerate
 transformers
 openai-whisper
 nvidia-ml-py
+silero-vad
