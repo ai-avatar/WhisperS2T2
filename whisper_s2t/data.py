@@ -229,6 +229,9 @@ class WhisperDataLoader:
                 
                 yield signal_batch, prompt_batch, seq_len, seg_metadata, pbar_update
         
+        if len(segmented_audio_signal) == 0:
+            return
+        
         signal_batch, prompt_batch, seq_len, seg_metadata = self.data_collate_fn(segmented_audio_signal)
         pbar_update = int(sum([pbar_update_len[_['file_id']] for _ in seg_metadata])*100)
 
