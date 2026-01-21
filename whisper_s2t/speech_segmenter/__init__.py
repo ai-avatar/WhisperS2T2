@@ -31,8 +31,8 @@ class SpeechSegmenter:
                  sampling_rate=16000):
         
         if vad_model is None:
-            from .frame_v2_vad import FrameV2VAD
-            vad_model = FrameV2VAD(
+            from .frame_vad import FrameVAD
+            vad_model = FrameVAD(
                 device=device,
                 sampling_rate=sampling_rate,
                 frame_size=frame_size,
