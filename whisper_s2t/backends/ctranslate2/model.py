@@ -261,7 +261,7 @@ class WhisperModelCT2(WhisperModel):
             for logit_array in segment.logits:
                 for logit in logit_array:
                     if isinstance(logit, ctranslate2.StorageView):
-                        logits.append(torch.as_tensor(logit.to_device(ctranslate2.Device(0))))
+                        logits.append(torch.as_tensor(logit.to_device(ctranslate2.Device(0)), dtype=torch.float32))
                         continue
                     logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
             
