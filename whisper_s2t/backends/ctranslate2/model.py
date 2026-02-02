@@ -12,7 +12,7 @@ from ...configs import *
 
 
 FAST_ASR_OPTIONS = {
-    "beam_size": 2, # increased from 1 to 2
+    "beam_size": 1, # increased from 1 to 2
     "best_of": 1, # Placeholder
     "patience": 1,
     "length_penalty": 1,
@@ -260,6 +260,7 @@ class WhisperModelCT2(WhisperModel):
             logits = []
             for logit_array in segment.logits:
                 for logit in logit_array:
+                    print(logit)
                     if isinstance(logit, ctranslate2.StorageView):
                         # [cpu:0 float32 storage viewed as ]
                         continue
