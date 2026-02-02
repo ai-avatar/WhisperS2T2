@@ -256,31 +256,62 @@ class WhisperModelCT2(WhisperModel):
         group_timestamps = []
         group_logprobs = [[]]
         for i, segment in enumerate(result):
-            # Calculate log probabilities from logits
-            logits = []
-            for logit_array in segment.logits:
-                for logit in logit_array:
-                    print(logit)
-                    if isinstance(logit, ctranslate2.StorageView):
-                        # [cpu:0 float32 storage viewed as ]
-                        continue
-                    logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
-            
-            if len(logits) > 0:
-                # Stack logits into a single tensor before applying softmax
-                logits_tensor = torch.stack(logits)
-                probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
-                log_probs = torch.log(probs)
-            else:
-                log_probs = []
-            
-            # Get log probability for the predicted token
-            token_log_probs = []
-            for j, token_id in enumerate(segment.sequences_ids[0]):
-                if j < len(log_probs):
-                    token_log_probs.append(log_probs[j][token_id].item())
+            print("segment:", segment)
+            # We compute avg_logprob for the top hypothesis (beam 0). With beam search, CTranslate2 may
+            # return scores for multiple hypotheses and logits with an added beam dimension.
+            hyp_ids = segment.sequences_ids[0] if isinstance(segment.sequences_ids, list) else segment.sequences_ids
 
-            for idx, token in enumerate(segment.sequences_ids[0]):
+            def _extract_token_logprobs_from_scores(seg, hyp_index=0):
+                # Prefer native token scores if present (works for any beam_size, avoids logits conversion).
+                # We support a few common attribute names across CTranslate2 versions.
+                for attr in ("token_scores", "tokens_scores", "tokens_score"):
+                    if hasattr(seg, attr):
+                        scores = getattr(seg, attr)
+                        if scores is None:
+                            continue
+                        # Could be List[float] for top hyp or List[List[float]] for all hyps.
+                        if isinstance(scores, list) and len(scores) > 0 and isinstance(scores[0], list):
+                            if hyp_index < len(scores):
+                                return scores[hyp_index]
+                        elif isinstance(scores, list):
+                            return scores
+                return None
+
+            token_log_probs = _extract_token_logprobs_from_scores(segment, hyp_index=0)
+
+            if token_log_probs is None:
+                # Fallback: compute per-token logprobs from logits (beam 0).
+                step_logits = []
+                for step in segment.logits:
+                    print("step:", step)
+                    # Some versions wrap per-step logits in a list/tuple.
+                    if isinstance(step, (list, tuple)) and len(step) > 0:
+                        step = step[0]
+
+                    if hasattr(step, "to_device"):
+                        # Move to CPU so NumPy can view it via the Array Interface.
+                        step = step.to_device(ctranslate2.Device("cpu"))
+
+                    step_arr = np.array(step)
+                    # If beam dimension exists, select beam 0 to match hyp_ids.
+                    if step_arr.ndim >= 2:
+                        step_arr = step_arr[0]
+
+                    step_logits.append(torch.from_numpy(step_arr.astype(np.float32, copy=False)))
+
+                if len(step_logits) > 0:
+                    logits_tensor = torch.stack(step_logits)  # (T, V)
+                    log_probs = torch.nn.functional.log_softmax(logits_tensor, dim=-1)
+                    token_log_probs = []
+                    for j, token_id in enumerate(hyp_ids):
+                        if j < log_probs.shape[0] and 0 <= token_id < log_probs.shape[1]:
+                            token_log_probs.append(float(log_probs[j, token_id].item()))
+                        else:
+                            token_log_probs.append(0.0)
+                else:
+                    token_log_probs = [0.0 for _ in hyp_ids]
+
+            for idx, token in enumerate(hyp_ids):
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
                     group_logprobs.append([])
