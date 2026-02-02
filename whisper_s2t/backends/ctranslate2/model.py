@@ -261,10 +261,13 @@ class WhisperModelCT2(WhisperModel):
             for logit_array in segment.logits:
                 for logit in logit_array:
                     if isinstance(logit, ctranslate2.StorageView):
-                        logits.append(torch.as_tensor(logit.to_device(ctranslate2.Device(0)), dtype=torch.float32))
+                        # [cpu:0 float32 storage viewed as ]
                         continue
                     logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
             
+            if len(logits) == 0:
+                continue
+
             # Stack logits into a single tensor before applying softmax
             logits_tensor = torch.stack(logits)
             probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
