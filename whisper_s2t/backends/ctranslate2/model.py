@@ -257,23 +257,53 @@ class WhisperModelCT2(WhisperModel):
         group_logprobs = [[]]
         for i, segment in enumerate(result):
             # Calculate log probabilities from logits
-            logits = []
-            for logit_array in segment.logits:
-                for logit in logit_array:
-                    logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
-            
-            # Stack logits into a single tensor before applying softmax
-            logits_tensor = torch.stack(logits)
+            def _to_cpu_numpy(x):
+                # CTranslate2 returns logits as StorageView. With beam search, logits may include a beam
+                # dimension. We always compute token logprobs for the top hypothesis (beam 0).
+                if hasattr(x, "to_device"):
+                    try:
+                        x = x.to_device("cpu")
+                    except Exception:
+                        # Some versions accept a Device object instead of a string.
+                        try:
+                            x = x.to_device(ctranslate2.Device("cpu"))
+                        except Exception:
+                            pass
+
+                if hasattr(x, "to_numpy"):
+                    return x.to_numpy()
+
+                # Fallback: numpy can sometimes view the underlying buffer directly.
+                return np.asarray(x)
+
+            step_logits = []
+            for step in segment.logits:
+                # Older/newer CTranslate2 versions may wrap per-step logits in a list/tuple.
+                if isinstance(step, (list, tuple)) and len(step) > 0:
+                    step = step[0]
+
+                step_arr = _to_cpu_numpy(step)
+                step_arr = np.asarray(step_arr)
+
+                # If beam search adds a leading beam dimension, select the top beam (0).
+                if step_arr.ndim >= 2:
+                    step_arr = step_arr[0]
+
+                step_logits.append(torch.from_numpy(step_arr.astype(np.float32, copy=False)))
+
+            # Stack logits into a single tensor before applying softmax: (T, V)
+            logits_tensor = torch.stack(step_logits) if len(step_logits) else torch.empty((0, 0), dtype=torch.float32)
             probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
             log_probs = torch.log(probs)
             
             # Get log probability for the predicted token
             token_log_probs = []
-            for j, token_id in enumerate(segment.sequences_ids[0]):
-                if j < len(log_probs):
+            hyp_ids = segment.sequences_ids[0] if isinstance(segment.sequences_ids, list) else segment.sequences_ids
+            for j, token_id in enumerate(hyp_ids):
+                if j < len(log_probs) and token_id < log_probs.shape[-1]:
                     token_log_probs.append(log_probs[j][token_id].item())
 
-            for idx, token in enumerate(segment.sequences_ids[0]):
+            for idx, token in enumerate(hyp_ids):
                 if token > self.tokenizer.timestamp_begin and len(tokens[group]):
                     tokens.append([])
                     group_logprobs.append([])
@@ -281,7 +311,8 @@ class WhisperModelCT2(WhisperModel):
                     group += 1
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
-                    group_logprobs[group].append(token_log_probs[idx])
+                    if idx < len(token_log_probs):
+                        group_logprobs[group].append(token_log_probs[idx])
                 
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
