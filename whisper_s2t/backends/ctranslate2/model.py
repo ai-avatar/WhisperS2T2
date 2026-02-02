@@ -12,7 +12,7 @@ from ...configs import *
 
 
 FAST_ASR_OPTIONS = {
-    "beam_size": 1,
+    "beam_size": 2, # increased from 1 to 2
     "best_of": 1, # Placeholder
     "patience": 1,
     "length_penalty": 1,
