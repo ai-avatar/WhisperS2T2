@@ -12,7 +12,7 @@ from ...configs import *
 
 
 FAST_ASR_OPTIONS = {
-    "beam_size": 1, # increased from 1 to 2
+    "beam_size": 2, # increased from 1 to 2
     "best_of": 1, # Placeholder
     "patience": 1,
     "length_penalty": 1,
@@ -266,13 +266,13 @@ class WhisperModelCT2(WhisperModel):
                         continue
                     logits.append(torch.tensor(np.array(logit.to_device(ctranslate2.Device(0)))))
             
-            if len(logits) == 0:
-                continue
-
-            # Stack logits into a single tensor before applying softmax
-            logits_tensor = torch.stack(logits)
-            probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
-            log_probs = torch.log(probs)
+            if len(logits) > 0:
+                # Stack logits into a single tensor before applying softmax
+                logits_tensor = torch.stack(logits)
+                probs = torch.nn.functional.softmax(logits_tensor, dim=-1)
+                log_probs = torch.log(probs)
+            else:
+                log_probs = []
             
             # Get log probability for the predicted token
             token_log_probs = []
@@ -288,7 +288,7 @@ class WhisperModelCT2(WhisperModel):
                     group += 1
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
-                    group_logprobs[group].append(token_log_probs[idx])
+                    group_logprobs[group].append(token_log_probs.get(idx, 0))
                 
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
