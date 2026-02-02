@@ -288,7 +288,7 @@ class WhisperModelCT2(WhisperModel):
                     group += 1
                 elif token < self.tokenizer.eot:
                     tokens[group].append(token)
-                    group_logprobs[group].append(token_log_probs.get(idx, 0))
+                    group_logprobs[group].append(token_log_probs[idx] if idx < len(token_log_probs) else 0)
                 
                 if token >= self.tokenizer.timestamp_begin:
                     group_timestamps.append((token - self.tokenizer.timestamp_begin) * TIME_PRECISION)
