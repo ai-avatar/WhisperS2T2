@@ -260,33 +260,21 @@ class WhisperModelCT2(WhisperModel):
             def _to_cpu_numpy(x):
                 # CTranslate2 returns logits as StorageView. With beam search, logits may include a beam
                 # dimension. We always compute token logprobs for the top hypothesis (beam 0).
-                #
-                # Important: Numpy can view a CPU StorageView via the Array Interface (use np.array(x)).
-                # For CUDA StorageView, first move to CPU.
-                if isinstance(x, (list, tuple)) and len(x) > 0:
-                    x = x[0]
-
                 if hasattr(x, "to_device"):
                     try:
-                        x = x.to_device(ctranslate2.Device("cpu"))
+                        x = x.to_device("cpu")
                     except Exception:
-                        # Some versions accept a string device.
+                        # Some versions accept a Device object instead of a string.
                         try:
-                            x = x.to_device("cpu")
+                            x = x.to_device(ctranslate2.Device("cpu"))
                         except Exception:
                             pass
 
-                try:
-                    # Prefer np.array(...) (as shown in CTranslate2 docs) over np.asarray(...).
-                    return np.array(x)
-                except Exception:
-                    # Fallback path: bridge through torch (works for both CPU and CUDA StorageView).
-                    try:
-                        dev = "cuda" if getattr(x, "device", None) == "cuda" else "cpu"
-                        return torch.as_tensor(x, device=dev).detach().cpu().numpy()
-                    except Exception:
-                        # Last resort: force object array (keeps shape info but not numeric ops).
-                        return np.array(x, dtype=object)
+                if hasattr(x, "to_numpy"):
+                    return x.to_numpy()
+
+                # Fallback: numpy can sometimes view the underlying buffer directly.
+                return np.asarray(x)
 
             step_logits = []
             for step in segment.logits:
