@@ -16,7 +16,7 @@ FAST_ASR_OPTIONS = {
     "best_of": 1, # Placeholder
     "patience": 1,
     "length_penalty": 1,
-    "repetition_penalty": 1.01,
+    "repetition_penalty": 1.05, # increased from 1.01 to 1.05 to reduce repetition
     "no_repeat_ngram_size": 0,
     "compression_ratio_threshold": 2.4, # Placeholder
     "log_prob_threshold": -1.0, # Placeholder
