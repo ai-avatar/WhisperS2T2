@@ -256,6 +256,7 @@ class WhisperModelCT2(WhisperModel):
         group_timestamps = []
         group_logprobs = [[]]
         for i, segment in enumerate(result):
+            print("segment:", segment)
             # We compute avg_logprob for the top hypothesis (beam 0). With beam search, CTranslate2 may
             # return scores for multiple hypotheses and logits with an added beam dimension.
             hyp_ids = segment.sequences_ids[0] if isinstance(segment.sequences_ids, list) else segment.sequences_ids
@@ -280,27 +281,16 @@ class WhisperModelCT2(WhisperModel):
 
             if token_log_probs is None:
                 # Fallback: compute per-token logprobs from logits (beam 0).
-                # Resolve a CPU device handle across CTranslate2 versions:
-                # - Some accept ctranslate2.Device("cpu")
-                # - Some only accept an int enum (commonly 0 == CPU)
-                try:
-                    _cpu_device = ctranslate2.Device("cpu")
-                except Exception:
-                    _cpu_device = ctranslate2.Device(0)
-
                 step_logits = []
                 for step in segment.logits:
+                    print("step:", step)
                     # Some versions wrap per-step logits in a list/tuple.
                     if isinstance(step, (list, tuple)) and len(step) > 0:
                         step = step[0]
 
                     if hasattr(step, "to_device"):
                         # Move to CPU so NumPy can view it via the Array Interface.
-                        try:
-                            step = step.to_device(_cpu_device)
-                        except Exception:
-                            # Some versions accept a string device.
-                            step = step.to_device("cpu")
+                        step = step.to_device(ctranslate2.Device("cpu"))
 
                     step_arr = np.array(step)
                     # If beam dimension exists, select beam 0 to match hyp_ids.
