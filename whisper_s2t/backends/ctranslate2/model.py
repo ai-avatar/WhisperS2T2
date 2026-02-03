@@ -256,7 +256,6 @@ class WhisperModelCT2(WhisperModel):
         group_timestamps = []
         group_logprobs = [[]]
         for i, segment in enumerate(result):
-            print("segment:", segment)
             # We compute avg_logprob for the top hypothesis (beam 0). With beam search, CTranslate2 may
             # return scores for multiple hypotheses and logits with an added beam dimension.
             hyp_ids = segment.sequences_ids[0] if isinstance(segment.sequences_ids, list) else segment.sequences_ids
@@ -290,9 +289,7 @@ class WhisperModelCT2(WhisperModel):
                     _cpu_device = ctranslate2.Device(0)
 
                 step_logits = []
-                print("segment.logits:", segment.logits)
                 for step in segment.logits:
-                    print("step:", step)
                     # Some versions wrap per-step logits in a list/tuple.
                     if isinstance(step, (list, tuple)) and len(step) > 0:
                         step = step[0]
