@@ -260,7 +260,6 @@ class WhisperModelCT2(WhisperModel):
             logits = []
             for logit_array in segment.logits:
                 for logit in logit_array:
-                    print(logit)
                     if isinstance(logit, ctranslate2.StorageView):
                         # This is the case when beam_size > 1. In this case, the logits seem to be empty, so we skip it.
                         # logit: [cpu:0 float32 storage viewed as ]
