@@ -109,7 +109,6 @@ class WhisperModelCT2(WhisperModel):
         
         self.generate_kwargs = {
             "max_length": max_text_token_len,
-            "return_log_prob": True,
             "return_scores": self.asr_options['return_scores'],
             "return_no_speech_prob": self.asr_options['return_no_speech_prob'],
             "length_penalty": self.asr_options['length_penalty'],
