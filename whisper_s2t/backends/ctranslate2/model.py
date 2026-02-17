@@ -167,7 +167,7 @@ class WhisperModelCT2(WhisperModel):
     
         return [
             dict(
-                word=word, start=round(start, 2), end=round(end, 2), prob=round(prob, 2)
+                word=word, start=round(start, 3), end=round(end, 3), prob=round(prob, 2)
             )
             for word, start, end, prob in zip(
                 words, start_times, end_times, word_probs
