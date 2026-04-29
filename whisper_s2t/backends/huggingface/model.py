@@ -1,5 +1,3 @@
-import math
-
 import torch
 import numpy as np
 
@@ -116,7 +114,7 @@ class WhisperModelHF(WhisperModel):
         if 'max_new_tokens' in params:
             self.update_params(params={'max_text_token_len': params['max_new_tokens']})
     
-    def assign_word_timings(self, alignments, token_probs, words, word_tokens):
+    def assign_word_timings(self, alignments, text_token_probs, words, word_tokens):
         text_indices = np.array([pair[0] for pair in alignments])
         time_indices = np.array([pair[1] for pair in alignments])
     
@@ -132,7 +130,7 @@ class WhisperModelHF(WhisperModel):
         start_times = jump_times[word_boundaries[:-1]]
         end_times = jump_times[word_boundaries[1:]]
         word_probs = [
-            float(np.mean(token_probs[i:j]))
+            np.mean(text_token_probs[i:j])
             for i, j in zip(word_boundaries[:-1], word_boundaries[1:])
         ]
     
@@ -193,17 +191,10 @@ class WhisperModelHF(WhisperModel):
                 align_words = []
                 align_word_tokens = []
 
-            token_probs = (
-                per_segment_token_probs[_idx]
-                if per_segment_token_probs is not None
-                else token_alignments[_idx].text_token_probs
-            )
-            _word_timings = self.assign_word_timings(
-                token_alignments[_idx].alignments,
-                token_probs,
-                align_words,
-                align_word_tokens,
-            )
+            _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
+                                                    token_alignments[_idx].text_token_probs, 
+                                                    align_words,
+                                                    align_word_tokens)
         
             stitched_seg = _seg_metadata['stitched_seg']
 
@@ -254,20 +245,10 @@ class WhisperModelHF(WhisperModel):
         group_idx = 0
         group_timestamps = [round(seg_metadata[0]['start_time'], 3), round(seg_metadata[0]['end_time'], 3)]
         group_logprobs = [[]]
-        per_segment_token_probs = []
         for i, segment in enumerate(result):
             logprobs_segment = logprobs[i]
             token_without_logprobs = len(segment) - len(logprobs_segment)
-            row_probs = []
             for token_i, token in enumerate(segment):
-                li = token_i - token_without_logprobs
-                if 0 <= li < len(logprobs_segment):
-                    lp = logprobs_segment[li]
-                    row_probs.append(
-                        math.exp(lp.item() if isinstance(lp, torch.Tensor) else float(lp))
-                    )
-                else:
-                    row_probs.append(1.0)
                 if token_i > token_without_logprobs and token < TOKEN_EOT:
                     group_logprobs[group_idx].append(logprobs_segment[token_i - token_without_logprobs])
 
@@ -286,9 +267,6 @@ class WhisperModelHF(WhisperModel):
                     # start timestamp found
                     group_timestamps[group_idx*2] = (token - TOKEN_TIMESTAMP_BEGIN) * TIME_PRECISION
 
-            row_probs.append(1.0)
-            per_segment_token_probs.append(row_probs)
-
         # remove last empty token list
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
@@ -305,15 +283,7 @@ class WhisperModelHF(WhisperModel):
         if align_features is not None:
             text_tokens = [x.tolist() + [TOKEN_EOT] for x in result]
             sot_seqs = [tuple(self.tokenizer.align_sot_sequence(prompt[0], prompt[1])) for prompt in prompts]
-            word_timings = self.align_words(
-                align_features,
-                text_groups,
-                text_tokens,
-                sot_seqs,
-                align_seq_lens,
-                seg_metadata,
-                per_segment_token_probs=per_segment_token_probs,
-            )
+            word_timings = self.align_words(align_features, text_groups, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
             offset = 0
             flat_word_timings = [word for sublist in word_timings for word in sublist]

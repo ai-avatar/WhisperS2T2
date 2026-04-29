@@ -1,4 +1,3 @@
-import math
 import os
 import tokenizers
 import ctranslate2
@@ -146,7 +145,7 @@ class WhisperModelCT2(WhisperModel):
         features = ctranslate2.StorageView.from_array(features.contiguous())
         return self.model.encode(features)
 
-    def assign_word_timings(self, alignments, token_probs, words, word_tokens):
+    def assign_word_timings(self, alignments, text_token_probs, words, word_tokens):
         text_indices = np.array([pair[0] for pair in alignments])
         time_indices = np.array([pair[1] for pair in alignments])
     
@@ -162,7 +161,7 @@ class WhisperModelCT2(WhisperModel):
         start_times = jump_times[word_boundaries[:-1]]
         end_times = jump_times[word_boundaries[1:]]
         word_probs = [
-            float(np.mean(token_probs[i:j]))
+            np.mean(text_token_probs[i:j])
             for i, j in zip(word_boundaries[:-1], word_boundaries[1:])
         ]
     
@@ -175,8 +174,7 @@ class WhisperModelCT2(WhisperModel):
             )
         ]
 
-    def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata,
-                    per_segment_token_probs=None):
+    def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
@@ -215,17 +213,10 @@ class WhisperModelCT2(WhisperModel):
                 align_words = []
                 align_word_tokens = []
 
-            token_probs = (
-                per_segment_token_probs[_idx]
-                if per_segment_token_probs is not None
-                else token_alignments[_idx].text_token_probs
-            )
-            _word_timings = self.assign_word_timings(
-                token_alignments[_idx].alignments,
-                token_probs,
-                align_words,
-                align_word_tokens,
-            )
+            _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
+                                                    token_alignments[_idx].text_token_probs, 
+                                                    align_words,
+                                                    align_word_tokens)
         
             stitched_seg = _seg_metadata['stitched_seg']
 
@@ -264,7 +255,6 @@ class WhisperModelCT2(WhisperModel):
         groups_per_segment = []
         group_timestamps = []
         group_logprobs = [[]]
-        per_segment_token_probs = []
         for i, segment in enumerate(result):
             # Calculate log probabilities from logits
             logits = []
@@ -310,16 +300,6 @@ class WhisperModelCT2(WhisperModel):
             if len(group_timestamps) % 2 == 1:
                 group_timestamps.append(round(seg_metadata[i]['end_time'], 3))
 
-            seq_ids = segment.sequences_ids[0]
-            per_segment_token_probs.append(
-                [
-                    math.exp(token_log_probs[k])
-                    if k < len(token_log_probs)
-                    else 1.0
-                    for k in range(len(seq_ids) + 1)
-                ]
-            )
-
         if len(tokens[-1]) == 0:
             tokens = tokens[:-1]
 
@@ -339,15 +319,7 @@ class WhisperModelCT2(WhisperModel):
         if align_features is not None:
             text_tokens = [x.sequences_ids[0]+[self.tokenizer.eot] for x in result]
             sot_seqs = [tuple(_[-4:]) for _ in prompts]
-            word_timings = self.align_words(
-                align_features,
-                texts,
-                text_tokens,
-                sot_seqs,
-                align_seq_lens,
-                seg_metadata,
-                per_segment_token_probs=per_segment_token_probs,
-            )
+            word_timings = self.align_words(align_features, texts, text_tokens, sot_seqs, align_seq_lens, seg_metadata)
 
             offset = 0
             flat_word_timings = [word for sublist in word_timings for word in sublist]
