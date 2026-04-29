@@ -160,7 +160,7 @@ class WhisperModelTRT(WhisperModel):
         
         return self.model.encode(features)
 
-    def assign_word_timings(self, alignments, text_token_probs, words, word_tokens):
+    def assign_word_timings(self, alignments, token_probs, words, word_tokens):
         text_indices = np.array([pair[0] for pair in alignments])
         time_indices = np.array([pair[1] for pair in alignments])
     
@@ -176,7 +176,7 @@ class WhisperModelTRT(WhisperModel):
         start_times = jump_times[word_boundaries[:-1]]
         end_times = jump_times[word_boundaries[1:]]
         word_probs = [
-            np.mean(text_token_probs[i:j])
+            float(np.mean(token_probs[i:j]))
             for i, j in zip(word_boundaries[:-1], word_boundaries[1:])
         ]
     
@@ -189,7 +189,8 @@ class WhisperModelTRT(WhisperModel):
             )
         ]
 
-    def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata):
+    def align_words(self, features, texts, text_tokens, sot_seqs, seq_lens, seg_metadata,
+                    per_segment_token_probs=None):
         lang_codes = [_['lang_code'] for _ in seg_metadata]
         word_tokens = self.tokenizer.split_to_word_tokens_batch(texts, text_tokens, lang_codes)
 
@@ -215,10 +216,17 @@ class WhisperModelTRT(WhisperModel):
 
         word_timings = []
         for _idx, _seg_metadata in enumerate(seg_metadata):
-            _word_timings = self.assign_word_timings(token_alignments[_idx].alignments, 
-                                                     token_alignments[_idx].text_token_probs, 
-                                                     word_tokens[_idx][0], 
-                                                     word_tokens[_idx][1])
+            token_probs = (
+                per_segment_token_probs[_idx]
+                if per_segment_token_probs is not None
+                else token_alignments[_idx].text_token_probs
+            )
+            _word_timings = self.assign_word_timings(
+                token_alignments[_idx].alignments,
+                token_probs,
+                word_tokens[_idx][0],
+                word_tokens[_idx][1],
+            )
         
             stitched_seg = _seg_metadata['stitched_seg']
 
