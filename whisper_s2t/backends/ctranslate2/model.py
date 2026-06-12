@@ -41,7 +41,7 @@ BEST_ASR_CONFIG = {
     "best_of": 1, # Placeholder
     "patience": 2,
     "length_penalty": 1,
-    "repetition_penalty": 1.01,
+    "repetition_penalty": 1.02,
     "no_repeat_ngram_size": 0,
     "compression_ratio_threshold": 2.4, # Placeholder
     "log_prob_threshold": -1.0, # Placeholder
