@@ -27,6 +27,7 @@ _MODELS = {
     "large-v3": "Systran/faster-whisper-large-v3",
     "large": "Systran/faster-whisper-large-v3",
     "distil-large-v3": "distil-whisper/distil-large-v3.5-ct2",
+    "whisper-large-v3-turbo": "dropbox-dash/faster-whisper-large-v3-turbo"
 }
 
 
